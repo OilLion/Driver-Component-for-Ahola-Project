@@ -1,0 +1,41 @@
+syntax = "proto3";
+package user_manager;
+
+message Registration {
+    string username = 1;
+    string password = 2;
+}
+ 
+message RegistrationResponse {
+    RegistrationResult result = 1;
+}
+
+enum RegistrationResult  {
+    RegistrationSuccess = 0; 
+    UserAlreadyExists = 1;
+    RegistrationUnknownError = -1;
+}
+
+message Login {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    LoginResult result = 1;
+    bytes uuid = 2; 
+    uint64 duration = 3;
+}
+
+enum LoginResult {
+    LoginSuccess = 0;
+    InalidPassword = 1;
+    DoesNotExist = 2;
+    LoginUnknownError = -1;
+}
+
+
+service UserManager {
+    rpc RegisterUser (Registration) returns (RegistrationResponse );  
+    rpc LoginUser (Login) returns (LoginResponse);
+}
