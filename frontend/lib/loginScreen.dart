@@ -14,7 +14,7 @@ class LoginScreenState extends State<LoginScreen>{
   bool passwordVisible = true;
   AutovalidateMode _autoValidate = AutovalidateMode.disabled;
 
-  userData userdata = userData();
+  UserData userdata = UserData();
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +69,7 @@ class LoginScreenState extends State<LoginScreen>{
                 ),
                 TextButton(
                     onPressed: _handleRegisterButton,
-                    child: Text("Register")
+                    child: const Text("Register")
                 )
               ],
             ),
@@ -102,7 +102,7 @@ class LoginScreenState extends State<LoginScreen>{
   }
 }
 
-class userData{
+class UserData{
   String username = "";
   String password = "";
 }
