@@ -27,56 +27,71 @@ class LoginScreenState extends State<LoginScreen>{
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                TextFormField(  // Username
-                  decoration: const InputDecoration(
-                    icon: Icon(Icons.account_box),
-                    hintText: 'Your Username',
-                    labelText: 'Username'
-                  ),
-                  onSaved: (value) => userdata.username = value!,
-                  validator: (value){
-                    return null;
-                  },
-                  keyboardType: TextInputType.name,
-
-                ),
-                TextFormField(  // Password
-                  obscureText: passwordVisible,
-                  decoration: InputDecoration(
-                      icon: const Icon(Icons.password),
-                      hintText: 'Your Password',
-                      labelText: 'Password',
-                      suffixIcon: IconButton(
-                        icon: Icon(passwordVisible ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () {
-                          setState(() {
-                            passwordVisible = !passwordVisible;
-                          });
-                        },
-                      )
-                  ),
-                  onSaved: (value) => userdata.password = value!,
-                  validator: (value) {
-                    return null;
-                  },
-                  keyboardType: TextInputType.visiblePassword
-                ),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _handleLoginButton,
-                    child: const Text('Log In'),
-                  ),
-                ),
-                TextButton(
-                    onPressed: _handleRegisterButton,
-                    child: const Text("Register")
-                )
+                userNameField(),
+                userPasswordField(),
+                loginButton(),
+                textButton()
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  TextFormField userNameField() {
+    return (TextFormField(  // Username
+      decoration: const InputDecoration(
+          icon: Icon(Icons.account_box),
+          hintText: 'Your Username',
+          labelText: 'Username'
+      ),
+      onSaved: (value) => userdata.username = value!,
+      validator: (value){
+        return null;
+      },
+      keyboardType: TextInputType.name,
+    ));
+  }
+
+  TextFormField userPasswordField() {
+    return (TextFormField(  // Password
+        obscureText: passwordVisible,
+        decoration: InputDecoration(
+            icon: const Icon(Icons.password),
+            hintText: 'Your Password',
+            labelText: 'Password',
+            suffixIcon: IconButton(
+              icon: Icon(passwordVisible ? Icons.visibility : Icons.visibility_off),
+              onPressed: () {
+                setState(() {
+                  passwordVisible = !passwordVisible;
+                });
+              },
+            )
+        ),
+        onSaved: (value) => userdata.password = value!,
+        validator: (value) {
+          return null;
+        },
+        keyboardType: TextInputType.visiblePassword
+    ));
+  }
+
+  Center loginButton() {
+    return (Center(
+      child: ElevatedButton(
+        onPressed: _handleLoginButton,
+        child: const Text('Log In'),
+      ),
+    ));
+  }
+
+  TextButton textButton() {
+    return (TextButton(
+        onPressed: _handleRegisterButton,
+        child: const Text("Register")
+    ));
   }
 
   void _handleLoginButton() {
@@ -86,6 +101,8 @@ class LoginScreenState extends State<LoginScreen>{
     }
     else{
       form.save();
+      //print(userdata.username);
+      //print(userdata.password);
       //TODO send userData to Backend to check if exists
     }
   }
