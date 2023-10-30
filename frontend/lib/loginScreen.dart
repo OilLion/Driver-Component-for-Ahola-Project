@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-
+import 'package:frontend/menuScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,7 +12,6 @@ class LoginScreenState extends State<LoginScreen>{
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool passwordVisible = true;
   AutovalidateMode _autoValidate = AutovalidateMode.disabled;
-
   UserData userdata = UserData();
 
   @override
@@ -96,27 +94,95 @@ class LoginScreenState extends State<LoginScreen>{
 
   void _handleLoginButton() {
     final form = _formKey.currentState;
+    bool successfulLogin = false;
+
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
     }
     else{
       form.save();
+      //TODO Remove if statement
+      if(userdata.username == 'admin'){
+        successfulLogin = true;
+      }
+
       //print(userdata.username);
       //print(userdata.password);
       //TODO send userData to Backend to check if exists
+      if(successfulLogin) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+      } else {
+        _showAlertDialog('Login Credentials are not correct!');
+      }
     }
   }
 
   void _handleRegisterButton() {
     final form = _formKey.currentState;
+    bool successfulRegister = false;
+
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
     }
     else{
       form.save();
+
+      //TODO Remove if statement
+      if(userdata.username == 'admin'){
+        successfulRegister = true;
+      }
+
       //TODO send userData to Backend and register user if not exists or change to register page
+      if(successfulRegister) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+      } else {
+        _showAlertDialog("Username already exists!");
+      }
     }
   }
+
+  void _showAlertDialog(String title) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return  AlertDialog(
+          title: Text(title),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Ok'),
+              onPressed: (){
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAlertDialogRegister() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return  AlertDialog(
+          title: const Text('Username already exists!'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Ok'),
+              onPressed: (){
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
+
+
 }
 
 class UserData{
