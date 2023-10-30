@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/client.dart';
 import 'loginScreen.dart';
 
 void main() {
+      WidgetsFlutterBinding.ensureInitialized();
+      UserManagerService().init();
+
       runApp(
         const MaterialApp(home: MyApp()),
       );
