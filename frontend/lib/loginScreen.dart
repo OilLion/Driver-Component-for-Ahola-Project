@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/generated/user_manager.pbgrpc.dart';
@@ -101,7 +99,7 @@ class LoginScreenState extends State<LoginScreen>{
 
   void _handleLoginButton() {
     final form = _formKey.currentState;
-    bool successfulLogin = false;
+    int loginResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
@@ -109,24 +107,29 @@ class LoginScreenState extends State<LoginScreen>{
     else{
       form.save();
 
-      //TODO Remove if statement
+      //Just for admin exception
       if(userdata.username == 'admin'){
-        successfulLogin = true;
+        loginResponse = 0;
       }
       
       //TODO send userData to Backend to check if exists
       sendLoginData();
 
-      if(successfulLogin) {
+      if(loginResponse == 0) {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+      } else if (loginResponse == 1) {
+        _showAlertDialog('Password is incorrect!');
+      } else if (loginResponse == 2) {
+        _showAlertDialog('Username doesnt exist!');
       } else {
-        _showAlertDialog('Login Credentials are not correct!');
+        _showAlertDialog('Unknown Error occured!');
       }
     }
   }
 
-  int hello = 3;
+
   Future<void> sendLoginData() async {
+    int hello = 3;
     try {
       Login loginRequest = Login();
       loginRequest.username = userdata.username;
@@ -148,11 +151,32 @@ class LoginScreenState extends State<LoginScreen>{
     }
   }
 
+  Future<void> sendRegisterData() async {
+    int hello = 3;
+    try {
+      Registration registration = Registration();
+      registration.username = userdata.username;
+      registration.password = userdata.password;
 
+      var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
+      ///do something with your response here
+      setState(() {
+        hello = registrationResponse.result.value;
+        print(hello);
+      });
+    } on GrpcError catch (e) {
+      ///handle all grpc errors here
+      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
+      print(e);
+    } catch (e) {
+      ///handle all generic errors here
+      print(e);
+    }
+  }
 
   void _handleRegisterButton() {
     final form = _formKey.currentState;
-    bool successfulRegister = false;
+    int registrationResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
@@ -160,19 +184,21 @@ class LoginScreenState extends State<LoginScreen>{
     else{
       form.save();
 
-      //TODO Remove if statement
+      //Just for admin exception
       if(userdata.username == 'admin'){
-        successfulRegister = true;
+        registrationResponse = 0;
       }
 
       //TODO send userData to Backend and register user if not exists or change to register page
+      sendRegisterData();
+      //change registrationResponse accordingly to output of sendRegisterData()
 
-
-
-      if(successfulRegister) {
+      if(registrationResponse == 0) {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+      } else if (registrationResponse == 1){
+        _showAlertDialog('Username already exists!');
       } else {
-        _showAlertDialog("Username already exists!");
+        _showAlertDialog('Unknown Error occured!');
       }
     }
   }
