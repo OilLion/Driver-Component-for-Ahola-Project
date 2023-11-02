@@ -1,0 +1,79 @@
+import 'package:grpc/grpc.dart';
+import 'package:frontend/generated/user_manager.pbgrpc.dart';
+
+class UserManagerService {
+
+  ///here enter your host without the http part (e.g enter google.com now http://google.com)
+  String baseUrl = "localhost";
+
+  UserManagerService._internal();
+  static final UserManagerService _instance = UserManagerService._internal();
+
+  factory UserManagerService() => _instance;
+
+  ///static HelloService instance that we will call when we want to make requests
+  static UserManagerService get instance => _instance;
+  ///HelloClient is the  class that was generated for us when we ran the generation command
+  ///We will pass a channel to it to intialize it
+  late UserManagerClient _helloClient;
+
+  ///this will be used to create a channel once we create this class.
+  ///Call HelloService().init() before making any call.
+  Future<void> init() async {
+    _createChannel();
+  }
+
+  ///provide public access to the HelloClient instance
+  UserManagerClient get helloClient {
+    return _helloClient;
+  }
+
+  ///here we create a channel and use it to initialize the HelloClient that was generated
+  ///
+  _createChannel() {
+    final channel = ClientChannel(
+      baseUrl,
+      port: 4269,
+
+      ///use credentials: ChannelCredentials.insecure() if you want to connect without Tls
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+
+      ///use this if you are connecting with Tls
+      //options: const ChannelOptions(),
+    );
+    _helloClient = UserManagerClient(channel);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*import 'package:frontend/generated/user_manager.pbgrpc.dart';
+import 'package:grpc/grpc.dart';
+
+
+void main() async {
+  final channel = ClientChannel(
+    'localhost',
+    port: 4269,
+    options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+  );
+
+  final stub = UserManagerClient(channel);
+
+  var response = await stub.loginUser(Login());
+  print('Response received: ${response}');
+
+  await channel.shutdown();
+}*/
