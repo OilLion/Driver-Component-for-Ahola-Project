@@ -3,6 +3,7 @@ version: '3.1'
 services:
   db:
     image: postgres
+    container_name: driver_database
     restart: always
     ports:
       - "5432:5432"
@@ -10,4 +11,6 @@ services:
       POSTGRES_PASSWORD: 1234
       POSTGRES_USER: "Driver"
       POSTGRES_DB: "Drivers"
-    
+    volumes:
+      - ./database/init.sql:/database_setup/init.sql
+      - ./database/init.sh:/database_setup/init.sh 

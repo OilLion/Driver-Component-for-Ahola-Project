@@ -3,7 +3,6 @@
 /* Created on:     29.10.2023 12:16:58                          */
 /*==============================================================*/
 
-
 drop index ASSOCIATION_2_FK;
 
 drop index DELIVERY_PK;
