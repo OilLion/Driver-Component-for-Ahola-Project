@@ -12,5 +12,5 @@ services:
       POSTGRES_USER: "Driver"
       POSTGRES_DB: "Drivers"
     volumes:
-      - ./database/init.sql:/database_setup/init.sql
-      - ./database/init.sh:/database_setup/init.sh 
+      - ../database/init.sql:/database_setup/init.sql
+      - ../database/init.sh:/database_setup/init.sh 

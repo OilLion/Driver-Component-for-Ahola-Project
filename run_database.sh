@@ -1,4 +1,5 @@
 #!/bin/sh
 
-docker-compose -f docker-compose.yml up -d
-docker exec driver_database /database_setup/init.sh
+docker-compose -f docker/database/docker-compose.yml up --build -d
+sleep 1
+docker exec driver_database /database_setup/init.sh 
