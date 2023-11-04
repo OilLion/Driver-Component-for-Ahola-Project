@@ -162,7 +162,7 @@ impl UserManagerService for UserManager {
                     event!(Level::INFO, user_logged_in = %username);
                     LoginResponse {
                         result: GrpcLoginResult::LoginSuccess as i32,
-                        uuid: token.id.as_bytes().into(),
+                        uuid: (*token.id.as_bytes()).into(),
                         duration: self.user_timeout.as_secs(),
                     }
                 }
