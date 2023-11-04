@@ -19,6 +19,10 @@ services:
     container_name: backend
     depends_on: 
       - db
+    ports:
+      - "4269:4269"
     build:
       dockerfile: ./docker/backend/Dockerfile 
+    entrypoint: "/backend"
+    command: [ "--database-url", "postgresql://Driver:1234@driver_database/Drivers" ]
 
