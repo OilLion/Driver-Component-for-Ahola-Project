@@ -25,7 +25,7 @@ If the database needs to be reset, or updated with a new table schema, the `setu
 script can be used:
 
   ```sh
-  setup_dp driver_database Driver Drivers ./database/init.sql
+  ./setup_db.sh driver_database Driver Drivers ./database/init.sql
   ```
 
 This drops the specified database, creates a new one with the same name
