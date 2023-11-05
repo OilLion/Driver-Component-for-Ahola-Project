@@ -58,10 +58,12 @@ message RouteResponse {
 
 enum RouteResult {
     Success = 0;
-    Unknown Error = -1;
+    UnknownError = -1;
 }
 
+message Empty {}
+
 service RouteManager {
-    rpc AddRoute (Route) returns (RouteResponse)
-    rpc GetRoutes () returns (Route)
+    rpc AddRoute (Route) returns (RouteResponse);
+    rpc GetRoutes (Empty) returns (Route);
 }
