@@ -58,7 +58,7 @@ create table Driver (
    password             VARCHAR(254)         null,
    available            BOOL                 null,
    location             VARCHAR(254)         null,
-   logged_in            BOOL                 not null,
+   logged_in            BOOL                 null,
    constraint PK_DRIVER primary key (id)
 );
 
