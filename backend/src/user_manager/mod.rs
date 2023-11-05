@@ -40,12 +40,14 @@ impl UserManager {
         &self,
         username: &str,
         password: &str,
+        vehicle: &str,
     ) -> Result<RegisterResult, sqlx::Error> {
         let result = sqlx::query!(
-            "INSERT INTO DRIVER (name, password)
-                VALUES ($1, $2)",
+            "INSERT INTO DRIVER (name, password, Veh_name)
+                VALUES ($1, $2, $3)",
             username,
             password,
+            vehicle,
         )
         .execute(&self.database)
         .await;
@@ -66,24 +68,15 @@ impl UserManager {
         username: &str,
         password: &str,
     ) -> Result<LoginResult, sqlx::Error> {
-        let mut transaction = self.database.begin().await?;
+        // let mut transaction = self.database.begin().await?;
         let query = sqlx::query!(
             "SELECT password FROM DRIVER
                 WHERE name = $1",
             username
         );
-        let result = query.fetch_one(&mut *transaction).await;
+        let result = query.fetch_one(&self.database).await;
         match result {
-            Ok(record) => Ok(if record.password.unwrap() == password {
-                sqlx::query!(
-                    "UPDATE DRIVER
-                                SET logged_in = true
-                                WHERE name = $1",
-                    username
-                )
-                .execute(&mut *transaction)
-                .await?;
-                transaction.commit().await?;
+            Ok(record) => Ok(if record.password == password {
                 let expiration = Instant::now() + self.user_timeout;
                 let token = LoginToken::new(username.into(), expiration);
                 self.login_tokens.insert_token(token.id, token.clone());
@@ -117,8 +110,15 @@ impl UserManagerService for UserManager {
         &self,
         registration: tonic::Request<Registration>,
     ) -> Result<Response<RegistrationResponse>, tonic::Status> {
-        let Registration { username, password } = registration.into_inner();
-        match self.add_driver(username.as_str(), password.as_str()).await {
+        let Registration {
+            username,
+            password,
+            vehicle,
+        } = registration.into_inner();
+        match self
+            .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
+            .await
+        {
             Ok(RegisterResult::Success) => {
                 event!(
                     Level::INFO,
@@ -162,14 +162,14 @@ impl UserManagerService for UserManager {
                     event!(Level::INFO, user_logged_in = %username);
                     LoginResponse {
                         result: GrpcLoginResult::LoginSuccess as i32,
-                        uuid: token.id.as_bytes().into(),
+                        uuid: (*token.id.as_bytes()).into(),
                         duration: self.user_timeout.as_secs(),
                     }
                 }
                 LoginResult::InvalidPassword => {
                     event!(Level::DEBUG, %username, "user attempted to login with wrong password");
                     LoginResponse {
-                        result: GrpcLoginResult::InalidPassword as i32,
+                        result: GrpcLoginResult::InvalidPassword as i32,
                         uuid: vec![],
                         duration: 0,
                     }
@@ -215,22 +215,23 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
+        let vehicle = "LKW";
         // Register the driver
         assert!(user_manager
-            .add_driver(username.as_str(), password.as_str())
+            .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .is_ok());
 
         let driver = sqlx::query!(
-            "SELECT name, password, logged_in FROM DRIVER WHERE name = $1",
+            "SELECT name, password, Veh_name FROM DRIVER WHERE name = $1",
             username
         )
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert_eq!(driver.name.unwrap(), username);
-        assert_eq!(driver.password.unwrap(), password);
-        assert_eq!(driver.logged_in.unwrap(), false);
+        assert_eq!(driver.name, username);
+        assert_eq!(driver.password, password);
+        assert_eq!(driver.veh_name, "LKW");
         // Try logging in as the driver
         let login_token = user_manager
             .login_driver(username.as_str(), password.as_str())
@@ -244,13 +245,6 @@ mod tests {
         } else {
             panic!("wrong LoginResult variant")
         }
-        // Check if the logged_in flag is correctly set in the DB
-        let logged_in_db = sqlx::query!("SELECT logged_in FROM DRIVER WHERE name = $1", username)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(logged_in_db.logged_in.unwrap(), true);
-
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
             .await
@@ -262,12 +256,13 @@ mod tests {
         let (pool, user_manager, _) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
+        let vehicle = "LKW";
         assert!(user_manager
-            .add_driver(username.as_str(), password.as_str())
+            .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .is_ok());
         let result = user_manager
-            .add_driver(&username.as_str(), password.as_str())
+            .add_driver(&username.as_str(), password.as_str(), vehicle)
             .await
             .unwrap();
         assert!(matches!(result, RegisterResult::DuplicateUsername));
@@ -283,8 +278,9 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
+        let vehicle = "LKW";
         assert!(user_manager
-            .add_driver(username.as_str(), password.as_str())
+            .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .is_ok());
 
@@ -320,8 +316,9 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
+        let vehicle = "LKW";
         user_manager
-            .add_driver(username.as_str(), password.as_str())
+            .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .unwrap();
         let login_token_a = user_manager

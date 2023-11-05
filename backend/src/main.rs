@@ -8,6 +8,7 @@ use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
     let args = Args::parse();
     let pool = PgPoolOptions::new()
         .max_connections(5)

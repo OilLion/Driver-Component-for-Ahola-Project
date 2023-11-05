@@ -19,7 +19,7 @@ pub struct Args {
     #[arg(short, long, value_name = "Duration in seconds")]
     login_duration: Option<u64>,
     /// URL for the postgres database.
-    #[arg(short, long, value_name = "Duration in seconds")]
+    #[arg(short, long, value_name = "URL of the database")]
     database_url: Option<String>,
 }
 

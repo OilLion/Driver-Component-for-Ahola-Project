@@ -1,0 +1,28 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    container_name: driver_database
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_USER: "Driver"
+      # POSTGRES_DB: "Drivers"
+    volumes:
+      - ./database/init.sql:/database_setup/init.sql
+      - ./database/init.sh:/docker-entrypoint-initdb.d/init.sh  
+
+  backend:
+    container_name: backend
+    depends_on: 
+      - db
+    ports:
+      - "4269:4269"
+    build:
+      dockerfile: ./docker/backend/Dockerfile 
+    entrypoint: "/backend"
+    command: [ "--database-url", "postgresql://Driver:1234@driver_database/Drivers" ]
+
