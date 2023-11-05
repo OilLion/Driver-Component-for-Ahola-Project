@@ -1,13 +1,16 @@
 /*==============================================================*/
 /* DBMS name:      PostgreSQL 9.x                               */
-/* Created on:     29.10.2023 12:16:58                          */
+/* Created on:     05.11.2023 12:59:18                          */
 /*==============================================================*/
 
-drop index ASSOCIATION_2_FK;
+
+drop index ASSOCIATION_2_FK2;
 
 drop index DELIVERY_PK;
 
 drop table Delivery;
+
+drop index ASSOCIATION_2_FK;
 
 drop index ASSOCIATION_1_FK;
 
@@ -29,8 +32,8 @@ drop table Vehicle;
 /* Table: Delivery                                              */
 /*==============================================================*/
 create table Delivery (
-   id                   INT4                 not null,
-   Dri_id               INT4                 not null,
+   id                   SERIAL               not null,
+   name                 VARCHAR(254)         null,
    constraint PK_DELIVERY primary key (id)
 );
 
@@ -42,38 +45,42 @@ id
 );
 
 /*==============================================================*/
-/* Index: ASSOCIATION_2_FK                                      */
+/* Index: ASSOCIATION_2_FK2                                     */
 /*==============================================================*/
-create  index ASSOCIATION_2_FK on Delivery (
-Dri_id
+create  index ASSOCIATION_2_FK2 on Delivery (
+name
 );
 
 /*==============================================================*/
 /* Table: Driver                                                */
 /*==============================================================*/
 create table Driver (
-   id                   INT4                 not null,
-   Veh_id               INT4                 not null,
-   name                 VARCHAR(254)         null,
-   password             VARCHAR(254)         null,
-   available            BOOL                 null,
-   location             VARCHAR(254)         null,
-   logged_in            BOOL                 null,
-   constraint PK_DRIVER primary key (id)
+   name                 VARCHAR(254)         not null,
+   id                   INT4                 null,
+   Veh_name             VARCHAR(254)         not null,
+   password             VARCHAR(254)         not null,
+   constraint PK_DRIVER primary key (name)
 );
 
 /*==============================================================*/
 /* Index: DRIVER_PK                                             */
 /*==============================================================*/
 create unique index DRIVER_PK on Driver (
-id
+name
 );
 
 /*==============================================================*/
 /* Index: ASSOCIATION_1_FK                                      */
 /*==============================================================*/
 create  index ASSOCIATION_1_FK on Driver (
-Veh_id
+Veh_name
+);
+
+/*==============================================================*/
+/* Index: ASSOCIATION_2_FK                                      */
+/*==============================================================*/
+create  index ASSOCIATION_2_FK on Driver (
+id
 );
 
 /*==============================================================*/
@@ -81,9 +88,9 @@ Veh_id
 /*==============================================================*/
 create table Event (
    Del_id               INT4                 not null,
-   id                   INT4                 not null,
-   location             VARCHAR(254)         null,
-   constraint PK_EVENT primary key (Del_id, id)
+   location             VARCHAR(254)         not null,
+   step                 INT4                 not null,
+   constraint PK_EVENT primary key (Del_id, step)
 );
 
 /*==============================================================*/
@@ -91,7 +98,7 @@ create table Event (
 /*==============================================================*/
 create unique index EVENT_PK on Event (
 Del_id,
-id
+step
 );
 
 /*==============================================================*/
@@ -105,26 +112,30 @@ Del_id
 /* Table: Vehicle                                               */
 /*==============================================================*/
 create table Vehicle (
-   id                   INT4                 not null,
-   name                 VARCHAR(254)         null,
-   constraint PK_VEHICLE primary key (id)
+   name                 VARCHAR(254)         not null,
+   constraint PK_VEHICLE primary key (name)
 );
 
 /*==============================================================*/
 /* Index: VEHICLE_PK                                            */
 /*==============================================================*/
 create unique index VEHICLE_PK on Vehicle (
-id
+name
 );
 
 alter table Delivery
-   add constraint FK_DELIVERY_ASSOCIATI_DRIVER foreign key (Dri_id)
-      references Driver (id)
+   add constraint FK_DELIVERY_ASSOCIATI_DRIVER foreign key (name)
+      references Driver (name)
       on delete restrict on update restrict;
 
 alter table Driver
-   add constraint FK_DRIVER_ASSOCIATI_VEHICLE foreign key (Veh_id)
-      references Vehicle (id)
+   add constraint FK_DRIVER_ASSOCIATI_VEHICLE foreign key (Veh_name)
+      references Vehicle (name)
+      on delete restrict on update restrict;
+
+alter table Driver
+   add constraint FK_DRIVER_ASSOCIATI_DELIVERY foreign key (id)
+      references Delivery (id)
       on delete restrict on update restrict;
 
 alter table Event

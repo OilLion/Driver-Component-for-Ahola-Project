@@ -4,7 +4,7 @@ import 'package:frontend/generated/user_manager.pbgrpc.dart';
 class UserManagerService {
 
   ///here enter your host without the http part (e.g enter google.com now http://google.com)
-  String baseUrl = "localhost";
+  String baseUrl = "10.0.2.2";
 
   UserManagerService._internal();
   static final UserManagerService _instance = UserManagerService._internal();
