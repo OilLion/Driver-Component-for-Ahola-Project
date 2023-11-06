@@ -33,7 +33,8 @@ drop table Vehicle;
 /*==============================================================*/
 create table Delivery (
    id                   SERIAL               not null,
-   name                 VARCHAR(254)         null,
+   Veh_name             VARCHAR(254)         not null,
+   name                 VARCHAR(254)         null, 
    constraint PK_DELIVERY primary key (id)
 );
 
@@ -126,6 +127,11 @@ name
 alter table Delivery
    add constraint FK_DELIVERY_ASSOCIATI_DRIVER foreign key (name)
       references Driver (name)
+      on delete restrict on update restrict;
+
+alter table Delivery
+   add constraint FK_DELIVERY_ASSOCIATI_VEHICLE foreign key (Veh_name)
+      references Vehicle (name)
       on delete restrict on update restrict;
 
 alter table Driver
