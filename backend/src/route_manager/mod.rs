@@ -12,9 +12,11 @@ use grpc_route_manager::{
     RouteResult as RouteResultMessage, 
     Routes as RoutesMessage,
 };
-use sqlx::{Pool, Postgres};
+use sqlx::{error::DatabaseError, Pool, Postgres};
 
-use crate::types::routes::Route;
+use crate::{
+    constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION, types::routes::Route,
+};
 
 pub struct RouteManager {
     database: Pool<Postgres>,
@@ -38,21 +40,36 @@ impl RouteManager {
         )
         .fetch_one(&mut *transaction)
         .await;
-        let route_id = add_route_result?.id;
-        let event_insert_queries = route.events.iter().zip(0i32..).map(|(event, index)| {
-            sqlx::query!(
-                "INSERT INTO EVENT (Del_id, location, step)
+        match add_route_result {
+            Ok(record) => {
+                let route_id = record.id;
+                let event_insert_queries = route.events.iter().zip(0i32..).map(|(event, index)| {
+                    sqlx::query!(
+                        "INSERT INTO EVENT (Del_id, location, step)
                     VALUES ($1, $2, $3)",
-                route_id,
-                event.location,
-                index
-            )
-        });
-        for insert in event_insert_queries {
-            insert.execute(&mut *transaction).await?;
+                        route_id,
+                        event.location,
+                        index
+                    )
+                });
+                for insert in event_insert_queries {
+                    insert.execute(&mut *transaction).await?;
+                }
+                transaction.commit().await?;
+                Ok(AddRouteResult::Success(route_id))
+            }
+            Err(sqlx::Error::Database(error))
+                if error
+                    .code()
+                    .is_some_and(|code| code == DATABASE_FOREIGN_KEY_VIOLATION)
+                    && error
+                        .constraint()
+                        .is_some_and(|contraint| contraint == "fk_delivery_associati_vehicle") =>
+            {
+                Ok(AddRouteResult::UnknownVehicle(error))
+            }
+            Err(err) => Err(err),
         }
-        transaction.commit().await?;
-        Ok(AddRouteResult::Success(route_id))
     }
 }
 
@@ -60,6 +77,7 @@ impl RouteManager {
 enum AddRouteResult {
     Success(i32),
     InvlaidRoute,
+    UnknownVehicle(Box<dyn DatabaseError>),
 }
 
 #[cfg(test)]
@@ -126,6 +144,21 @@ mod route_manager_tests {
         .await
         .unwrap();
         assert!(matches!(route_result, AddRouteResult::InvlaidRoute));
+    }
+
+    #[tokio::test]
+    async fn reject_rpute_with_unknown_vehicle() {
+        let vehicle = "vehicle_not_in_database";
+        let events: Vec<_> = ["Kokkola", "Helsinki"]
+            .iter()
+            .map(|location| Event {
+                location: (*location).into(),
+            })
+            .collect();
+        let route_result = test_adding_route_helper(events, vehicle.into())
+            .await
+            .unwrap();
+        assert!(matches!(route_result, AddRouteResult::UnknownVehicle))
     }
 
     async fn test_adding_route_helper(
