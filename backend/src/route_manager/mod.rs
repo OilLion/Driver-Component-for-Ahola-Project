@@ -25,6 +25,9 @@ impl RouteManager {
         Self { database }
     }
     async fn add_route(&self, route: &Route) -> Result<AddRouteResult, sqlx::Error> {
+        if route.events.len() < 2 {
+            return Ok(AddRouteResult::InvlaidRoute);
+        }
         let mut transaction = self.database.begin().await?;
         // insert a new route and retreive the id
         let add_route_result = sqlx::query!(
@@ -100,6 +103,29 @@ mod route_manager_tests {
             AddRouteResult::Success(_) => (),
             other => panic!("{:?}", other),
         }
+    }
+
+    #[tokio::test]
+    async fn reject_route_with_no_events() {
+        let vehicle = "Van";
+        let route_result = test_adding_route_helper(vec![], vehicle.into())
+            .await
+            .unwrap();
+        assert!(matches!(route_result, AddRouteResult::InvlaidRoute));
+    }
+
+    #[tokio::test]
+    async fn reject_route_with_one_event() {
+        let vehicle = "Van";
+        let route_result = test_adding_route_helper(
+            vec![Event {
+                location: "Hamburg".into(),
+            }],
+            vehicle.into(),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(route_result, AddRouteResult::InvlaidRoute));
     }
 
     async fn test_adding_route_helper(
