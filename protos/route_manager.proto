@@ -1,0 +1,32 @@
+syntax = "proto3";
+package route_manager;
+
+message Route {
+    repeated Event events = 1;
+    string vehicle = 2;
+}
+
+message Routes {
+    repeated Route route = 1;
+}
+
+message Event {
+    string location = 1;
+}
+
+message RouteResponse {
+    RouteResult result = 1;
+}
+
+enum RouteResult {
+    Success = 0;
+    UnknownVehicle = 1;
+    UnknownError = -1;
+}
+
+message Empty {}
+
+service RouteManager {
+    rpc AddRoute (Route) returns (RouteResponse);
+    rpc GetRoutes (Empty) returns (Route);
+}
