@@ -1,6 +1,8 @@
 use std::time::Instant;
 use uuid::Uuid;
 
+pub mod routes;
+
 pub struct Driver {
     pub username: String,
     pub password: String,
