@@ -1,24 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/generated/user_manager.pbgrpc.dart';
-import 'package:frontend/menuScreen.dart';
 import 'package:grpc/grpc.dart';
 import 'package:frontend/userData.dart';
-import 'package:frontend/registrationScreen.dart';
 
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegistrationScreen extends StatelessWidget{
+  const RegistrationScreen({super.key});
 
   @override
-  State<StatefulWidget> createState() => LoginScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Registration'),
+      ),
+      body: const RegistrationScreenStateful(),
+    );
+  }
 }
 
-class LoginScreenState extends State<LoginScreen>{
+class RegistrationScreenStateful extends StatefulWidget{
+  const RegistrationScreenStateful({super.key});
+
+  @override
+  State<StatefulWidget> createState() => RegistrationScreenStatefulState();
+}
+
+class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool passwordVisible = true;
   AutovalidateMode _autoValidate = AutovalidateMode.disabled;
   UserData userdata = UserData();
+  bool passwordVisible = true;
+  List<String> list = <String>['Truck', 'Van'];
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +46,7 @@ class LoginScreenState extends State<LoginScreen>{
               children: [
                 userNameField(),
                 userPasswordField(),
-                loginButton(),
+                vehicleList(),
                 registrationButton()
               ],
             ),
@@ -82,13 +95,28 @@ class LoginScreenState extends State<LoginScreen>{
     ));
   }
 
-  Center loginButton() {
-    return (Center(
-      child: ElevatedButton(
-        onPressed: _handleLoginButton,
-        child: const Text('Log In'),
-      ),
-    ));
+  DropdownButtonFormField<String> vehicleList() {
+    String dropdownValue = list.first;
+
+    return DropdownButtonFormField<String>(
+      value: dropdownValue,
+      icon: const Icon(Icons.arrow_downward),
+      elevation: 16,
+      //style: const TextStyle(color: Colors.deepPurple),
+      onChanged: (String? value) {
+        // This is called when the user selects an item.
+        setState(() {
+          dropdownValue = value!;
+        });
+      },
+      onSaved: (value) => userdata.vehicle = value!,
+      items: list.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+    );
   }
 
   TextButton registrationButton() {
@@ -98,70 +126,42 @@ class LoginScreenState extends State<LoginScreen>{
     ));
   }
 
-  void _handleLoginButton() {
+  void _handleRegisterButton() {
     final form = _formKey.currentState;
-    int loginResponse = -1;
+    int registrationResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
     }
     else{
       form.save();
-
+      print(userdata.vehicle); //TODO delete
       //Just for admin exception
       if(userdata.username == 'admin'){
-        loginResponse = 0;
+        registrationResponse = 0;
       }
-      
-      //TODO send userData to Backend to check if exists
-      sendLoginData();
 
-      if(loginResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (loginResponse == 1) {
-        _showAlertDialog('Password is incorrect!');
-      } else if (loginResponse == 2) {
-        _showAlertDialog('Username doesnt exist!');
+      //TODO send userData to Backend and register user if not exists or change to register page
+      sendRegisterData();
+      //change registrationResponse accordingly to output of sendRegisterData()
+
+      if(registrationResponse == 0) {
+        Navigator.pop(context);
+      } else if (registrationResponse == 1){
+        _showAlertDialog('Username already exists!');
       } else {
         _showAlertDialog('Unknown Error occured!');
       }
     }
   }
 
-  Future<void> sendLoginData() async {
-    int hello = 3;
-    try {
-      Login loginRequest = Login();
-      loginRequest.username = userdata.username;
-      loginRequest.password = userdata.password;
-
-      var helloResponse = await UserManagerService.instance.helloClient.loginUser(loginRequest);
-      ///do something with your response here
-      setState(() {
-        hello = helloResponse.result.value;
-        print(hello);
-      });
-    } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
-      print(e);
-    } catch (e) {
-      ///handle all generic errors here
-      print(e);
-    }
-  }
-
-  void _handleRegisterButton(){
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const RegistrationScreen()));
-  }
-
-  /*
   Future<void> sendRegisterData() async {
     int hello = 3;
     try {
       Registration registration = Registration();
       registration.username = userdata.username;
       registration.password = userdata.password;
+      //TODO registration.vehicle = userdata.vehicle;
 
       var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
       ///do something with your response here
@@ -178,36 +178,6 @@ class LoginScreenState extends State<LoginScreen>{
       print(e);
     }
   }
-
-  void _handleRegisterButton() {
-    final form = _formKey.currentState;
-    int registrationResponse = -1;
-
-    if(!form!.validate()){
-      _autoValidate = AutovalidateMode.always;
-    }
-    else{
-      form.save();
-
-      //Just for admin exception
-      if(userdata.username == 'admin'){
-        registrationResponse = 0;
-      }
-
-      //TODO send userData to Backend and register user if not exists or change to register page
-      sendRegisterData();
-      //change registrationResponse accordingly to output of sendRegisterData()
-
-      if(registrationResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (registrationResponse == 1){
-        _showAlertDialog('Username already exists!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
-    }
-  }
-   */
 
   void _showAlertDialog(String title) {
     showDialog(
