@@ -158,7 +158,7 @@ mod route_manager_tests {
         let route_result = test_adding_route_helper(events, vehicle.into())
             .await
             .unwrap();
-        assert!(matches!(route_result, AddRouteResult::UnknownVehicle))
+        assert!(matches!(route_result, AddRouteResult::UnknownVehicle(_)))
     }
 
     async fn test_adding_route_helper(
