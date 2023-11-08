@@ -47,6 +47,12 @@ impl LoginTokens {
     pub fn insert_token(&self, key: Uuid, token: LoginToken) -> Option<LoginToken> {
         self.0.insert(key, token)
     }
+    pub fn get_token(
+        &self,
+        token_key: &Uuid,
+    ) -> Option<dashmap::mapref::one::Ref<'_, Uuid, LoginToken>> {
+        self.0.get(token_key)
+    }
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

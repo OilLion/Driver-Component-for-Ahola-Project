@@ -13,18 +13,24 @@ use grpc_route_manager::{
     Routes as RoutesMessage,
 };
 use sqlx::{error::DatabaseError, Pool, Postgres};
+use uuid::Uuid;
 
 use crate::{
-    constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION, types::routes::Route,
+    constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
+    types::{routes::Route, LoginTokens},
 };
 
 pub struct RouteManager {
     database: Pool<Postgres>,
+    login_tokens: LoginTokens,
 }
 
 impl RouteManager {
-    pub fn new(database: Pool<Postgres>) -> Self {
-        Self { database }
+    pub fn new(database: Pool<Postgres>, login_tokens: LoginTokens) -> Self {
+        Self {
+            database,
+            login_tokens,
+        }
     }
     async fn add_route(&self, route: &Route) -> Result<AddRouteResult, sqlx::Error> {
         if route.events.len() < 2 {
@@ -71,6 +77,15 @@ impl RouteManager {
             Err(err) => Err(err),
         }
     }
+    fn get_all_routes(&self, token_id: Uuid) -> Result<GetRouteResult, sqlx::Error> {
+        match self.login_tokens.get_token(&token_id) {
+            Some(entry) => {
+                let token = entry.value();
+                todo!()
+            }
+            None => Ok(GetRouteResult::NotAuthenticated),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -78,6 +93,12 @@ enum AddRouteResult {
     Success(i32),
     InvlaidRoute,
     UnknownVehicle(Box<dyn DatabaseError>),
+}
+
+#[derive(Debug)]
+enum GetRouteResult {
+    Success,
+    NotAuthenticated,
 }
 
 #[cfg(test)]
@@ -165,7 +186,7 @@ mod route_manager_tests {
         events: Vec<Event>,
         vehicle: String,
     ) -> Result<AddRouteResult, sqlx::Error> {
-        let (pool, route_manager) = setup().await;
+        let (pool, route_manager, _) = setup().await;
         let route = Route::new(vehicle.clone(), events.clone());
         match route_manager.add_route(&route).await? {
             AddRouteResult::Success(route_id) => {
@@ -198,10 +219,21 @@ mod route_manager_tests {
         }
     }
 
-    async fn setup() -> (Pool<Postgres>, RouteManager) {
+    #[tokio::test]
+    async fn get_routes_not_authenticated() {
+        let (_, route_manager, _) = setup().await;
+        let get_route_result = route_manager.get_all_routes(Uuid::new_v4());
+        assert!(matches!(
+            get_route_result,
+            Ok(GetRouteResult::NotAuthenticated)
+        ))
+    }
+
+    async fn setup() -> (Pool<Postgres>, RouteManager, LoginTokens) {
+        let tokens = LoginTokens::new();
         let pool = get_database_pool().await;
-        let rout_manager = RouteManager::new(pool.clone());
-        (pool, rout_manager)
+        let rout_manager = RouteManager::new(pool.clone(), tokens.clone());
+        (pool, rout_manager, tokens)
     }
 
     async fn get_database_pool() -> Pool<Postgres> {
