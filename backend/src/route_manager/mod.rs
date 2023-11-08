@@ -8,8 +8,8 @@ use grpc_route_manager::route_manager_server::RouteManager as RouteManagerServic
 use grpc_route_manager::{
     Event as EventMessage,
     Route as RouteMessage,
-    RouteResponse as RouteResponseMessage, 
-    RouteResult as RouteResultMessage, 
+    AddRouteResponse as AddRouteResponseMessage, 
+    AddRouteResult as AddRouteResultMessage, 
     Routes as RoutesMessage,
 };
 use sqlx::{error::DatabaseError, Pool, Postgres};
