@@ -104,7 +104,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
       elevation: 16,
       //style: const TextStyle(color: Colors.deepPurple),
       onChanged: (String? value) {
-        // This is called when the user selects an item.
+        /// This is called when the user selects an item.
         setState(() {
           dropdownValue = value!;
         });
@@ -135,15 +135,10 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     }
     else{
       form.save();
-      print(userdata.vehicle); //TODO delete
-      //Just for admin exception
-      if(userdata.username == 'admin'){
-        registrationResponse = 0;
-      }
 
-      //TODO send userData to Backend and register user if not exists or change to register page
+      //TODO
+      //registrationResponse = sendRegisterData() as int;
       sendRegisterData();
-      //change registrationResponse accordingly to output of sendRegisterData()
 
       if(registrationResponse == 0) {
         Navigator.pop(context);
@@ -155,13 +150,14 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     }
   }
 
+  //TODO void ersetzen zu int
   Future<void> sendRegisterData() async {
     int hello = 3;
     try {
       Registration registration = Registration();
       registration.username = userdata.username;
       registration.password = userdata.password;
-      //TODO registration.vehicle = userdata.vehicle;
+      registration.vehicle = userdata.vehicle;
 
       var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
       ///do something with your response here

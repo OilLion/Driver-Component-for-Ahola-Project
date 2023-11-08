@@ -32,13 +32,13 @@ class RegistrationResult extends $pb.ProtobufEnum {
 
 class LoginResult extends $pb.ProtobufEnum {
   static const LoginResult LoginSuccess = LoginResult._(0, _omitEnumNames ? '' : 'LoginSuccess');
-  static const LoginResult InalidPassword = LoginResult._(1, _omitEnumNames ? '' : 'InalidPassword');
+  static const LoginResult InvalidPassword = LoginResult._(1, _omitEnumNames ? '' : 'InvalidPassword');
   static const LoginResult DoesNotExist = LoginResult._(2, _omitEnumNames ? '' : 'DoesNotExist');
   static const LoginResult LoginUnknownError = LoginResult._(-1, _omitEnumNames ? '' : 'LoginUnknownError');
 
   static const $core.List<LoginResult> values = <LoginResult> [
     LoginSuccess,
-    InalidPassword,
+    InvalidPassword,
     DoesNotExist,
     LoginUnknownError,
   ];
@@ -47,6 +47,21 @@ class LoginResult extends $pb.ProtobufEnum {
   static LoginResult? valueOf($core.int value) => _byValue[value];
 
   const LoginResult._($core.int v, $core.String n) : super(v, n);
+}
+
+class RouteResult extends $pb.ProtobufEnum {
+  static const RouteResult Success = RouteResult._(0, _omitEnumNames ? '' : 'Success');
+  static const RouteResult UnknownError = RouteResult._(-1, _omitEnumNames ? '' : 'UnknownError');
+
+  static const $core.List<RouteResult> values = <RouteResult> [
+    Success,
+    UnknownError,
+  ];
+
+  static final $core.Map<$core.int, RouteResult> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static RouteResult? valueOf($core.int value) => _byValue[value];
+
+  const RouteResult._($core.int v, $core.String n) : super(v, n);
 }
 
 

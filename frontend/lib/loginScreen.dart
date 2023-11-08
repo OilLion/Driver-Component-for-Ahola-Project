@@ -108,12 +108,13 @@ class LoginScreenState extends State<LoginScreen>{
     else{
       form.save();
 
-      //Just for admin exception
+      ///Just for admin exception
       if(userdata.username == 'admin'){
         loginResponse = 0;
       }
-      
-      //TODO send userData to Backend to check if exists
+
+      //TODO
+      //loginResponse = sendLoginData() as int;
       sendLoginData();
 
       if(loginResponse == 0) {
@@ -128,6 +129,7 @@ class LoginScreenState extends State<LoginScreen>{
     }
   }
 
+  //TODO change void to int and return something
   Future<void> sendLoginData() async {
     int hello = 3;
     try {
@@ -154,60 +156,6 @@ class LoginScreenState extends State<LoginScreen>{
   void _handleRegisterButton(){
     Navigator.push(context, MaterialPageRoute(builder: (context) => const RegistrationScreen()));
   }
-
-  /*
-  Future<void> sendRegisterData() async {
-    int hello = 3;
-    try {
-      Registration registration = Registration();
-      registration.username = userdata.username;
-      registration.password = userdata.password;
-
-      var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
-      ///do something with your response here
-      setState(() {
-        hello = registrationResponse.result.value;
-        print(hello);
-      });
-    } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
-      print(e);
-    } catch (e) {
-      ///handle all generic errors here
-      print(e);
-    }
-  }
-
-  void _handleRegisterButton() {
-    final form = _formKey.currentState;
-    int registrationResponse = -1;
-
-    if(!form!.validate()){
-      _autoValidate = AutovalidateMode.always;
-    }
-    else{
-      form.save();
-
-      //Just for admin exception
-      if(userdata.username == 'admin'){
-        registrationResponse = 0;
-      }
-
-      //TODO send userData to Backend and register user if not exists or change to register page
-      sendRegisterData();
-      //change registrationResponse accordingly to output of sendRegisterData()
-
-      if(registrationResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (registrationResponse == 1){
-        _showAlertDialog('Username already exists!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
-    }
-  }
-   */
 
   void _showAlertDialog(String title) {
     showDialog(

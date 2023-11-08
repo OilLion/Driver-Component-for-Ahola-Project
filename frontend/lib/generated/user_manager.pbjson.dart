@@ -33,7 +33,7 @@ const LoginResult$json = {
   '1': 'LoginResult',
   '2': [
     {'1': 'LoginSuccess', '2': 0},
-    {'1': 'InalidPassword', '2': 1},
+    {'1': 'InvalidPassword', '2': 1},
     {'1': 'DoesNotExist', '2': 2},
     {'1': 'LoginUnknownError', '2': -1},
   ],
@@ -41,8 +41,21 @@ const LoginResult$json = {
 
 /// Descriptor for `LoginResult`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List loginResultDescriptor = $convert.base64Decode(
-    'CgtMb2dpblJlc3VsdBIQCgxMb2dpblN1Y2Nlc3MQABISCg5JbmFsaWRQYXNzd29yZBABEhAKDE'
-    'RvZXNOb3RFeGlzdBACEh4KEUxvZ2luVW5rbm93bkVycm9yEP///////////wE=');
+    'CgtMb2dpblJlc3VsdBIQCgxMb2dpblN1Y2Nlc3MQABITCg9JbnZhbGlkUGFzc3dvcmQQARIQCg'
+    'xEb2VzTm90RXhpc3QQAhIeChFMb2dpblVua25vd25FcnJvchD///////////8B');
+
+@$core.Deprecated('Use routeResultDescriptor instead')
+const RouteResult$json = {
+  '1': 'RouteResult',
+  '2': [
+    {'1': 'Success', '2': 0},
+    {'1': 'UnknownError', '2': -1},
+  ],
+};
+
+/// Descriptor for `RouteResult`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List routeResultDescriptor = $convert.base64Decode(
+    'CgtSb3V0ZVJlc3VsdBILCgdTdWNjZXNzEAASGQoMVW5rbm93bkVycm9yEP///////////wE=');
 
 @$core.Deprecated('Use registrationDescriptor instead')
 const Registration$json = {
@@ -50,13 +63,14 @@ const Registration$json = {
   '2': [
     {'1': 'username', '3': 1, '4': 1, '5': 9, '10': 'username'},
     {'1': 'password', '3': 2, '4': 1, '5': 9, '10': 'password'},
+    {'1': 'vehicle', '3': 3, '4': 1, '5': 9, '10': 'vehicle'},
   ],
 };
 
 /// Descriptor for `Registration`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List registrationDescriptor = $convert.base64Decode(
     'CgxSZWdpc3RyYXRpb24SGgoIdXNlcm5hbWUYASABKAlSCHVzZXJuYW1lEhoKCHBhc3N3b3JkGA'
-    'IgASgJUghwYXNzd29yZA==');
+    'IgASgJUghwYXNzd29yZBIYCgd2ZWhpY2xlGAMgASgJUgd2ZWhpY2xl');
 
 @$core.Deprecated('Use registrationResponseDescriptor instead')
 const RegistrationResponse$json = {
@@ -100,4 +114,62 @@ final $typed_data.Uint8List loginResponseDescriptor = $convert.base64Decode(
     'Cg1Mb2dpblJlc3BvbnNlEjEKBnJlc3VsdBgBIAEoDjIZLnVzZXJfbWFuYWdlci5Mb2dpblJlc3'
     'VsdFIGcmVzdWx0EhIKBHV1aWQYAiABKAxSBHV1aWQSGgoIZHVyYXRpb24YAyABKARSCGR1cmF0'
     'aW9u');
+
+@$core.Deprecated('Use routeDescriptor instead')
+const Route$json = {
+  '1': 'Route',
+  '2': [
+    {'1': 'events', '3': 1, '4': 3, '5': 11, '6': '.user_manager.Event', '10': 'events'},
+  ],
+};
+
+/// Descriptor for `Route`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List routeDescriptor = $convert.base64Decode(
+    'CgVSb3V0ZRIrCgZldmVudHMYASADKAsyEy51c2VyX21hbmFnZXIuRXZlbnRSBmV2ZW50cw==');
+
+@$core.Deprecated('Use routesDescriptor instead')
+const Routes$json = {
+  '1': 'Routes',
+  '2': [
+    {'1': 'route', '3': 1, '4': 3, '5': 11, '6': '.user_manager.Route', '10': 'route'},
+  ],
+};
+
+/// Descriptor for `Routes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List routesDescriptor = $convert.base64Decode(
+    'CgZSb3V0ZXMSKQoFcm91dGUYASADKAsyEy51c2VyX21hbmFnZXIuUm91dGVSBXJvdXRl');
+
+@$core.Deprecated('Use eventDescriptor instead')
+const Event$json = {
+  '1': 'Event',
+  '2': [
+    {'1': 'location', '3': 1, '4': 1, '5': 9, '10': 'location'},
+  ],
+};
+
+/// Descriptor for `Event`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List eventDescriptor = $convert.base64Decode(
+    'CgVFdmVudBIaCghsb2NhdGlvbhgBIAEoCVIIbG9jYXRpb24=');
+
+@$core.Deprecated('Use routeResponseDescriptor instead')
+const RouteResponse$json = {
+  '1': 'RouteResponse',
+  '2': [
+    {'1': 'result', '3': 1, '4': 1, '5': 14, '6': '.user_manager.RouteResult', '10': 'result'},
+  ],
+};
+
+/// Descriptor for `RouteResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List routeResponseDescriptor = $convert.base64Decode(
+    'Cg1Sb3V0ZVJlc3BvbnNlEjEKBnJlc3VsdBgBIAEoDjIZLnVzZXJfbWFuYWdlci5Sb3V0ZVJlc3'
+    'VsdFIGcmVzdWx0');
+
+@$core.Deprecated('Use emptyDescriptor instead')
+const Empty$json = {
+  '1': 'Empty',
+};
+
+/// Descriptor for `Empty`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List emptyDescriptor = $convert.base64Decode(
+    'CgVFbXB0eQ==');
 
