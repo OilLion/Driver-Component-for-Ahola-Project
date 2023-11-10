@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+pub mod grpc_implementation;
+
 use sqlx::{postgres::PgArguments, query::Query, Acquire, Error, Pool, Postgres};
 use uuid::Uuid;
 
@@ -24,6 +26,7 @@ pub enum RouteManagerError {
     UnhandledDatabaseError(#[from] sqlx::Error),
 }
 
+#[derive(Debug)]
 pub struct RouteManager {
     database: Pool<Postgres>,
     login_tokens: LoginTokens,
@@ -36,7 +39,7 @@ impl RouteManager {
             login_tokens,
         }
     }
-    async fn add_route(&self, route: &Route) -> Result<i32, RouteManagerError> {
+    async fn add_route(&self, route: Route) -> Result<i32, RouteManagerError> {
         if route.events.len() < 2 {
             return Err(RouteManagerError::InvalidRoute);
         }
@@ -103,10 +106,8 @@ impl RouteManager {
             .get_token(&token_id)
             .ok_or(RouteManagerError::UnauthenticatedUser)?;
         let user_name = login_token.user.as_str();
-        let mut conn = conn.acquire().await?;
-        Ok(Self::retrieve_routes_for_user(&mut *conn, user_name)
-            .await?
-            .into_values())
+        let values = Self::retrieve_routes_for_user(conn, user_name).await?;
+        Ok(values.into_values())
     }
 
     async fn retrieve_routes_for_user<'a, A>(
@@ -226,7 +227,7 @@ mod route_manager_tests {
     ) -> Result<i32, RouteManagerError> {
         let (pool, route_manager, _) = setup().await;
         let route = Route::new(vehicle.clone(), events.clone());
-        let route_id = route_manager.add_route(&route).await?;
+        let route_id = route_manager.add_route(route).await?;
         let route_events = sqlx::query!(
             "SELECT * FROM
                         delivery inner JOIN event on delivery.id = event.del_id 
