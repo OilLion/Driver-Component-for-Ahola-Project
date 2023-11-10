@@ -1,23 +1,7 @@
-pub mod grpc_route_manager {
-    tonic::include_proto!("route_manager");
-}
-
 use std::collections::BTreeMap;
+use thiserror::Error;
 
-use grpc_route_manager::route_manager_server::RouteManager as RouteManagerService;
-// import type definitions from proto
-#[rustfmt::skip]
-use grpc_route_manager::{
-    Event as EventMessage,
-    Route as RouteMessage,
-    AddRouteResponse as AddRouteResponseMessage, 
-    AddRouteResult as AddRouteResultMessage, 
-    Routes as RoutesMessage,
-};
-use sqlx::{
-    error::DatabaseError, postgres::PgArguments, query::Query, Acquire, Error, Execute, Pool,
-    Postgres,
-};
+use sqlx::{postgres::PgArguments, query::Query, Acquire, Error, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
@@ -27,6 +11,18 @@ use crate::{
         LoginTokens,
     },
 };
+
+#[derive(Error, Debug)]
+pub enum RouteManagerError {
+    #[error("supplied route is invalid")]
+    InvalidRoute,
+    #[error("vehicle {0} not in database")]
+    UnknownVehicle(String),
+    #[error("attempt to access RouteManager functionality with invlaid LoginToken id")]
+    UnauthenticatedUser,
+    #[error("database error: {0}")]
+    UnhandledDatabaseError(#[from] sqlx::Error),
+}
 
 pub struct RouteManager {
     database: Pool<Postgres>,
@@ -40,32 +36,22 @@ impl RouteManager {
             login_tokens,
         }
     }
-    async fn add_route(&self, route: &Route) -> Result<AddRouteResult, sqlx::Error> {
+    async fn add_route(&self, route: &Route) -> Result<i32, RouteManagerError> {
         if route.events.len() < 2 {
-            return Ok(AddRouteResult::InvlaidRoute);
+            return Err(RouteManagerError::InvalidRoute);
         }
         let mut transaction = self.database.begin().await?;
         // insert a new route and retreive the id
-        let add_route_result = sqlx::query!(
+        let route_id = sqlx::query!(
             "INSERT INTO DELIVERY (veh_name)
                             VALUES ($1)
                             RETURNING id",
             route.vehicle
         )
         .fetch_one(&mut *transaction)
-        .await;
-        match add_route_result {
-            Ok(record) => {
-                let route_id = record.id;
-                let event_insert_queries =
-                    Self::route_event_insert_queries(&route_id, route.events.iter());
-                for insert in event_insert_queries {
-                    insert.execute(&mut *transaction).await?;
-                }
-                transaction.commit().await?;
-                Ok(AddRouteResult::Success(route_id))
-            }
-            Err(sqlx::Error::Database(error))
+        .await
+        .map_err(|error| match error {
+            sqlx::Error::Database(error)
                 if error
                     .code()
                     .is_some_and(|code| code == DATABASE_FOREIGN_KEY_VIOLATION)
@@ -73,10 +59,17 @@ impl RouteManager {
                         .constraint()
                         .is_some_and(|contraint| contraint == "fk_delivery_associati_vehicle") =>
             {
-                Ok(AddRouteResult::UnknownVehicle(error))
+                RouteManagerError::UnknownVehicle(route.vehicle.clone())
             }
-            Err(err) => Err(err),
+            err => err.into(),
+        })?
+        .id;
+        let event_insert_queries = Self::route_event_insert_queries(&route_id, route.events.iter());
+        for insert in event_insert_queries {
+            insert.execute(&mut *transaction).await?;
         }
+        transaction.commit().await?;
+        Ok(route_id)
     }
 
     fn route_event_insert_queries<'a>(
@@ -93,7 +86,11 @@ impl RouteManager {
             )
         })
     }
-    async fn get_routes(&self, token_id: Uuid) -> Result<GetRouteResult, sqlx::Error> {
+
+    async fn get_routes(
+        &self,
+        token_id: Uuid,
+    ) -> Result<impl Iterator<Item = _Route> + '_, RouteManagerError> {
         Self::get_route_helper(&self.database, &self.login_tokens, &token_id).await
     }
 
@@ -101,16 +98,15 @@ impl RouteManager {
         conn: impl Acquire<'_, Database = Postgres>,
         login_tokens: &LoginTokens,
         token_id: &Uuid,
-    ) -> Result<GetRouteResult, sqlx::Error> {
-        match login_tokens.get_token(&token_id) {
-            Some(entry) => {
-                let mut conn = conn.acquire().await?;
-                let user = entry.value().user.as_str();
-                let routes = Self::retrieve_routes_for_user(&mut *conn, user).await?;
-                Ok(GetRouteResult::Success(routes.into_values().collect()))
-            }
-            None => Ok(GetRouteResult::NotAuthenticated),
-        }
+    ) -> Result<impl Iterator<Item = _Route>, RouteManagerError> {
+        let login_token = login_tokens
+            .get_token(&token_id)
+            .ok_or(RouteManagerError::UnauthenticatedUser)?;
+        let user_name = login_token.user.as_str();
+        let mut conn = conn.acquire().await?;
+        Ok(Self::retrieve_routes_for_user(&mut *conn, user_name)
+            .await?
+            .into_values())
     }
 
     async fn retrieve_routes_for_user<'a, A>(
@@ -152,22 +148,9 @@ impl RouteManager {
 #[derive(Debug)]
 struct _Route(i32, Vec<Event>);
 
-#[derive(Debug)]
-enum AddRouteResult {
-    Success(i32),
-    InvlaidRoute,
-    UnknownVehicle(Box<dyn DatabaseError>),
-}
-
-#[derive(Debug)]
-enum GetRouteResult {
-    Success(Vec<_Route>),
-    NotAuthenticated,
-}
-
 #[cfg(test)]
 mod route_manager_tests {
-    use sqlx::{postgres::PgPoolOptions, Acquire, Executor, Transaction};
+    use sqlx::{postgres::PgPoolOptions, Acquire, Transaction};
     use std::time::{Duration, Instant};
 
     use crate::{
@@ -187,13 +170,9 @@ mod route_manager_tests {
             })
             .collect();
         let vehicle = "Truck";
-        match test_adding_route_helper(events, vehicle.into())
+        test_adding_route_helper(events, vehicle.into())
             .await
-            .unwrap()
-        {
-            AddRouteResult::Success(_) => (),
-            other => panic!("{:?}", other),
-        }
+            .unwrap();
     }
 
     #[tokio::test]
@@ -203,22 +182,16 @@ mod route_manager_tests {
             .map(|location| Event { location })
             .collect();
         let vehicle = "Van";
-        match test_adding_route_helper(events, vehicle.into())
+        test_adding_route_helper(events, vehicle.into())
             .await
-            .unwrap()
-        {
-            AddRouteResult::Success(_) => (),
-            other => panic!("{:?}", other),
-        }
+            .unwrap();
     }
 
     #[tokio::test]
     async fn reject_route_with_no_events() {
         let vehicle = "Van";
-        let route_result = test_adding_route_helper(vec![], vehicle.into())
-            .await
-            .unwrap();
-        assert!(matches!(route_result, AddRouteResult::InvlaidRoute));
+        let route_result = test_adding_route_helper(vec![], vehicle.into()).await;
+        assert!(route_result.is_err_and(|err| matches!(err, RouteManagerError::InvalidRoute)));
     }
 
     #[tokio::test]
@@ -230,9 +203,8 @@ mod route_manager_tests {
             }],
             vehicle.into(),
         )
-        .await
-        .unwrap();
-        assert!(matches!(route_result, AddRouteResult::InvlaidRoute));
+        .await;
+        assert!(route_result.is_err_and(|err| matches!(err, RouteManagerError::InvalidRoute)));
     }
 
     #[tokio::test]
@@ -244,57 +216,47 @@ mod route_manager_tests {
                 location: (*location).into(),
             })
             .collect();
-        let route_result = test_adding_route_helper(events, vehicle.into())
-            .await
-            .unwrap();
-        assert!(matches!(route_result, AddRouteResult::UnknownVehicle(_)))
+        let route_result = test_adding_route_helper(events, vehicle.into()).await;
+        assert!(route_result.is_err_and(|err| matches!(err, RouteManagerError::UnknownVehicle(_))));
     }
 
     async fn test_adding_route_helper(
         events: Vec<Event>,
         vehicle: String,
-    ) -> Result<AddRouteResult, sqlx::Error> {
+    ) -> Result<i32, RouteManagerError> {
         let (pool, route_manager, _) = setup().await;
         let route = Route::new(vehicle.clone(), events.clone());
-        match route_manager.add_route(&route).await? {
-            AddRouteResult::Success(route_id) => {
-                let route_events = sqlx::query!(
-                    "SELECT * FROM
+        let route_id = route_manager.add_route(&route).await?;
+        let route_events = sqlx::query!(
+            "SELECT * FROM
                         delivery inner JOIN event on delivery.id = event.del_id 
                         where id = $1",
-                    route_id
-                )
-                .fetch_all(&pool)
-                .await
-                .unwrap();
-                for ((db_event, index), control_event) in
-                    route_events.iter().zip(0i32..).zip(events)
-                {
-                    assert_eq!(db_event.veh_name, vehicle);
-                    assert_eq!(db_event.location, control_event.location);
-                    assert_eq!(db_event.step, index);
-                    assert_eq!(db_event.name, None);
-                }
-                sqlx::query!("DELETE FROM event WHERE del_id=$1", route_id)
-                    .execute(&pool)
-                    .await?;
-                sqlx::query!("DELETE FROM delivery WHERE id=$1", route_id)
-                    .execute(&pool)
-                    .await?;
-                Ok(AddRouteResult::Success(route_id))
-            }
-            other => Ok(other),
+            route_id
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        for ((db_event, index), control_event) in route_events.iter().zip(0i32..).zip(events) {
+            assert_eq!(db_event.veh_name, vehicle);
+            assert_eq!(db_event.location, control_event.location);
+            assert_eq!(db_event.step, index);
+            assert_eq!(db_event.name, None);
         }
+        sqlx::query!("DELETE FROM event WHERE del_id=$1", route_id)
+            .execute(&pool)
+            .await?;
+        sqlx::query!("DELETE FROM delivery WHERE id=$1", route_id)
+            .execute(&pool)
+            .await?;
+        Ok(route_id)
     }
 
     #[tokio::test]
     async fn get_routes_not_authenticated() {
         let (_, route_manager, _) = setup().await;
         let get_route_result = route_manager.get_routes(Uuid::new_v4()).await;
-        assert!(matches!(
-            get_route_result,
-            Ok(GetRouteResult::NotAuthenticated)
-        ))
+        assert!(get_route_result
+            .is_err_and(|err| matches!(err, RouteManagerError::UnauthenticatedUser)));
     }
 
     #[tokio::test]
@@ -309,15 +271,8 @@ mod route_manager_tests {
         let retrieved_routes = RouteManager::get_route_helper(&mut tx, &tokens, &login_token.id)
             .await
             .unwrap();
-        if let GetRouteResult::Success(routes) = retrieved_routes {
-            for (retrieved, inserted) in routes.iter().zip(inserted_routes) {
-                assert_eq!(retrieved.1, inserted.events)
-            }
-        } else {
-            panic!(
-                "Expected GetRouteResult::Success, got {:?} instead",
-                retrieved_routes
-            )
+        for (retrieved, inserted) in retrieved_routes.zip(inserted_routes) {
+            assert_eq!(retrieved.1, inserted.events)
         }
         tx.rollback().await.unwrap();
     }

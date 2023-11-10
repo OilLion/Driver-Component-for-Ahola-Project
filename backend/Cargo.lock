@@ -201,6 +201,7 @@ dependencies = [
  "dashmap",
  "prost 0.12.1",
  "sqlx",
+ "thiserror",
  "tokio",
  "tonic",
  "tonic-build",
