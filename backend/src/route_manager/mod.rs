@@ -2,6 +2,8 @@ pub mod grpc_route_manager {
     tonic::include_proto!("route_manager");
 }
 
+use std::collections::BTreeMap;
+
 use grpc_route_manager::route_manager_server::RouteManager as RouteManagerService;
 // import type definitions from proto
 #[rustfmt::skip]
@@ -12,12 +14,18 @@ use grpc_route_manager::{
     AddRouteResult as AddRouteResultMessage, 
     Routes as RoutesMessage,
 };
-use sqlx::{error::DatabaseError, Pool, Postgres};
+use sqlx::{
+    error::DatabaseError, postgres::PgArguments, query::Query, Acquire, Error, Execute, Pool,
+    Postgres,
+};
 use uuid::Uuid;
 
 use crate::{
     constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
-    types::{routes::Route, LoginTokens},
+    types::{
+        routes::{Event, Route},
+        LoginTokens,
+    },
 };
 
 pub struct RouteManager {
@@ -49,15 +57,8 @@ impl RouteManager {
         match add_route_result {
             Ok(record) => {
                 let route_id = record.id;
-                let event_insert_queries = route.events.iter().zip(0i32..).map(|(event, index)| {
-                    sqlx::query!(
-                        "INSERT INTO EVENT (Del_id, location, step)
-                    VALUES ($1, $2, $3)",
-                        route_id,
-                        event.location,
-                        index
-                    )
-                });
+                let event_insert_queries =
+                    Self::route_event_insert_queries(&route_id, route.events.iter());
                 for insert in event_insert_queries {
                     insert.execute(&mut *transaction).await?;
                 }
@@ -77,16 +78,79 @@ impl RouteManager {
             Err(err) => Err(err),
         }
     }
-    fn get_all_routes(&self, token_id: Uuid) -> Result<GetRouteResult, sqlx::Error> {
-        match self.login_tokens.get_token(&token_id) {
+
+    fn route_event_insert_queries<'a>(
+        route_id: &'a i32,
+        events: impl Iterator<Item = &'a Event>,
+    ) -> impl Iterator<Item = Query<'a, Postgres, PgArguments>> {
+        events.zip(0i32..).map(|(event, index)| {
+            sqlx::query!(
+                "INSERT INTO EVENT (Del_id, location, step)
+                    VALUES ($1, $2, $3)",
+                *route_id,
+                event.location,
+                index
+            )
+        })
+    }
+    async fn get_routes(&self, token_id: Uuid) -> Result<GetRouteResult, sqlx::Error> {
+        Self::get_route_helper(&self.database, &self.login_tokens, &token_id).await
+    }
+
+    async fn get_route_helper(
+        conn: impl Acquire<'_, Database = Postgres>,
+        login_tokens: &LoginTokens,
+        token_id: &Uuid,
+    ) -> Result<GetRouteResult, sqlx::Error> {
+        match login_tokens.get_token(&token_id) {
             Some(entry) => {
-                let token = entry.value();
-                todo!()
+                let mut conn = conn.acquire().await?;
+                let user = entry.value().user.as_str();
+                let routes = Self::retrieve_routes_for_user(&mut *conn, user).await?;
+                Ok(GetRouteResult::Success(routes.into_values().collect()))
             }
             None => Ok(GetRouteResult::NotAuthenticated),
         }
     }
+
+    async fn retrieve_routes_for_user<'a, A>(
+        connection: A,
+        user: &str,
+    ) -> Result<BTreeMap<i32, _Route>, Error>
+    where
+        A: Acquire<'a, Database = Postgres>,
+    {
+        let mut connection = connection.acquire().await?;
+        let mut routes: BTreeMap<i32, _Route> = BTreeMap::new();
+        sqlx::query!(
+            "
+                        SELECT de.id, ev.location, ev.step FROM
+                            driver dr, delivery de, event ev
+                            WHERE dr.name = $1
+                            AND   dr.veh_name = de.veh_name
+                            AND   de.id = ev.del_id
+                            ORDER BY de.id, ev.step
+                    ",
+            user
+        )
+        .fetch_all(&mut *connection)
+        .await?
+        .into_iter()
+        .for_each(|event| {
+            routes
+                .entry(event.id)
+                .or_insert(_Route(event.id, vec![]))
+                .1
+                .push(Event {
+                    location: event.location,
+                });
+        });
+        Ok(routes)
+    }
 }
+
+#[derive(Debug)]
+struct _Route(i32, Vec<Event>);
 
 #[derive(Debug)]
 enum AddRouteResult {
@@ -97,15 +161,19 @@ enum AddRouteResult {
 
 #[derive(Debug)]
 enum GetRouteResult {
-    Success,
+    Success(Vec<_Route>),
     NotAuthenticated,
 }
 
 #[cfg(test)]
 mod route_manager_tests {
-    use sqlx::postgres::PgPoolOptions;
+    use sqlx::{postgres::PgPoolOptions, Acquire, Executor, Transaction};
+    use std::time::{Duration, Instant};
 
-    use crate::{constants::DATABASE_URL, types::routes::Event};
+    use crate::{
+        constants::DATABASE_URL,
+        types::{routes::Event, LoginToken},
+    };
     use uuid::Uuid;
 
     use super::*;
@@ -222,11 +290,69 @@ mod route_manager_tests {
     #[tokio::test]
     async fn get_routes_not_authenticated() {
         let (_, route_manager, _) = setup().await;
-        let get_route_result = route_manager.get_all_routes(Uuid::new_v4());
+        let get_route_result = route_manager.get_routes(Uuid::new_v4()).await;
         assert!(matches!(
             get_route_result,
             Ok(GetRouteResult::NotAuthenticated)
         ))
+    }
+
+    #[tokio::test]
+    async fn get_routes() {
+        let (pool, route_manager, tokens) = setup().await;
+        let mut tx = pool.begin().await.unwrap();
+        let (username, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
+        let login_token =
+            LoginToken::new(username.clone(), Instant::now() + Duration::from_secs(100));
+        tokens.insert_token(login_token.id, login_token.clone());
+        let inserted_routes = generate_test_routes(&mut tx, vehicle.as_str(), 100, 12).await;
+        let retrieved_routes = RouteManager::get_route_helper(&mut tx, &tokens, &login_token.id)
+            .await
+            .unwrap();
+        if let GetRouteResult::Success(routes) = retrieved_routes {
+            for (retrieved, inserted) in routes.iter().zip(inserted_routes) {
+                assert_eq!(retrieved.1, inserted.events)
+            }
+        } else {
+            panic!(
+                "Expected GetRouteResult::Success, got {:?} instead",
+                retrieved_routes
+            )
+        }
+        tx.rollback().await.unwrap();
+    }
+
+    // Generates a test user and a test vehicle and puts them into the database
+    async fn generate_test_user_and_vehicle(
+        conn: impl Acquire<'_, Database = Postgres>,
+    ) -> (String, String) {
+        let user = Uuid::new_v4().to_string();
+        let vehicle = Uuid::new_v4().to_string();
+        let mut conn = conn.acquire().await.unwrap();
+        sqlx::query!(
+            "
+                INSERT INTO vehicle (name)
+                VALUES ($1)
+            ",
+            vehicle
+        )
+        .execute(&mut *conn)
+        // .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query!(
+            "
+                INSERT INTO driver (name, veh_name, password)
+                VALUES ($1, $2, '123');
+            ",
+            user,
+            vehicle,
+        )
+        // .execute(&pool)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+        (user, vehicle)
     }
 
     async fn setup() -> (Pool<Postgres>, RouteManager, LoginTokens) {
@@ -242,5 +368,50 @@ mod route_manager_tests {
             .connect(DATABASE_URL)
             .await
             .unwrap()
+    }
+
+    async fn generate_test_routes(
+        connection: &mut Transaction<'_, Postgres>,
+        // connection: &Pool<Postgres>,
+        vehicle: &str,
+        route_count: usize,
+        event_count: usize,
+    ) -> Vec<Route> {
+        let routes: Vec<_> = (0..route_count)
+            .map(|_| generate_route(vehicle.into(), event_count))
+            .collect();
+        for route in &routes {
+            let route_id = sqlx::query!(
+                "INSERT INTO DELIVERY (veh_name)
+                            VALUES ($1)
+                            RETURNING id",
+                route.vehicle
+            )
+            .fetch_one(connection.as_mut())
+            // .fetch_one(connection)
+            .await
+            .unwrap()
+            .id;
+            let event_insert_queries =
+                RouteManager::route_event_insert_queries(&route_id, route.events.iter());
+            for insert_query in event_insert_queries {
+                insert_query.execute(connection.as_mut()).await.unwrap();
+            }
+        }
+        let n = sqlx::query!("SELECT COUNT(id) from delivery")
+            .fetch_one(connection.as_mut())
+            .await
+            .unwrap();
+        assert_eq!(n.count, Some(route_count as i64));
+        routes
+    }
+
+    fn generate_route(vehicle: String, event_count: usize) -> Route {
+        let events = (0..event_count)
+            .map(|_| Event {
+                location: Uuid::new_v4().to_string(),
+            })
+            .collect();
+        Route { events, vehicle }
     }
 }
