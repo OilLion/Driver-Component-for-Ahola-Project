@@ -60,19 +60,66 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     );
   }
 
-  SizedBox routeList() {
+  Column routeList() {
     return
-      SizedBox(
-        height: 500,
-        child: ListView.builder(
-          itemCount: _routes.length,
-          itemBuilder: (context, index) {
-            return Container(
-              alignment: Alignment.center,
-              //color: Colors.deepPurple[200],
-              child: Text(_routes[index].routeId as String),
-            );
-        }),
+      Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  flex: 5,
+                  child: Container(
+                      alignment: Alignment.center,
+                      //color: Colors.deepPurple[200],
+                      child: const Text(
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          "Starting Point")
+                  )
+              ),
+              Expanded(
+                  flex: 5,
+                  child: Container(
+                    alignment: Alignment.center,
+                    //color: Colors.deepPurple[200],
+                      child: const Text(
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          "End Point")
+                  )
+              )
+            ],
+          ),
+          SizedBox(
+            height: 500,
+            child: ListView.builder(
+              itemCount: _routes.length,
+              itemBuilder: (context, index) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: Container(
+                              alignment: Alignment.center,
+                              //color: Colors.deepPurple[200],
+                              child: Text(_routes[index].events.first.location)
+                          )
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: Container(
+                              alignment: Alignment.center,
+                              //color: Colors.deepPurple[200],
+                              child: Text(_routes[index].events.last.location)
+                          )
+                        )
+                      ],
+                    ),
+                  ],
+                );
+            }),
+          ),
+        ],
       );
   }
 
@@ -82,6 +129,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     getRoutes().whenComplete(() {
       if(getRouteResponse == 0) {
         print("Get Routes was successful");
+       // print(_routes.length);
       } else if (getRouteResponse == 1) {
         _showAlertDialog('User is not authenticated!');
       } else if (getRouteResponse == 2) {
@@ -102,6 +150,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       setState(() {
         getRouteResponse = responseGetRequest.result.value;
         _routes = responseGetRequest.routes;
+        print(responseGetRequest.routes.length);
       });
     } on GrpcError catch (e) {
       ///handle all grpc errors here
