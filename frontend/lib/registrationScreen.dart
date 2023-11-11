@@ -126,9 +126,10 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     ));
   }
 
+  int registrationResponse = -1;
+
   void _handleRegisterButton() {
     final form = _formKey.currentState;
-    int registrationResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
@@ -136,35 +137,35 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     else{
       form.save();
 
-      //TODO
-      //registrationResponse = sendRegisterData() as int;
-      sendRegisterData();
-
-      if(registrationResponse == 0) {
-        Navigator.pop(context);
-      } else if (registrationResponse == 1){
-        _showAlertDialog('Username already exists!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
+      sendRegisterData().whenComplete(() {
+        print(registrationResponse);
+        if(registrationResponse == 0) {
+          Navigator.pop(context);
+        } else if (registrationResponse == 1){
+          _showAlertDialog('Username already exists!');
+        } else {
+          _showAlertDialog('Unknown Error occured!');
+        }
+      });
     }
   }
 
-  //TODO void ersetzen zu int
   Future<void> sendRegisterData() async {
-    int hello = 3;
     try {
       Registration registration = Registration();
       registration.username = userdata.username;
       registration.password = userdata.password;
       registration.vehicle = userdata.vehicle;
 
-      var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
-      ///do something with your response here
-      setState(() {
-        hello = registrationResponse.result.value;
-        print(hello);
-      });
+      if(registration.username != "" && registration.password != ""){
+        var responseRegistration = await UserManagerService.instance.helloClient.registerUser(registration);
+        ///do something with your response here
+        setState(() {
+          registrationResponse = responseRegistration.result.value;
+        });
+      } else{
+        registrationResponse = -1;
+      }
     } on GrpcError catch (e) {
       ///handle all grpc errors here
       ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/generated/user_manager.pbgrpc.dart';
@@ -98,9 +100,11 @@ class LoginScreenState extends State<LoginScreen>{
     ));
   }
 
+
+  int loginResponse = -1;
+
   void _handleLoginButton() {
     final form = _formKey.currentState;
-    int loginResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
@@ -113,35 +117,32 @@ class LoginScreenState extends State<LoginScreen>{
         loginResponse = 0;
       }
 
-      //TODO
-      //loginResponse = sendLoginData() as int;
-      sendLoginData();
-
-      if(loginResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (loginResponse == 1) {
-        _showAlertDialog('Password is incorrect!');
-      } else if (loginResponse == 2) {
-        _showAlertDialog('Username doesnt exist!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
+      sendLoginData().whenComplete(() {
+        if(loginResponse == 0) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+        } else if (loginResponse == 1) {
+          _showAlertDialog('Password is incorrect!');
+        } else if (loginResponse == 2) {
+          _showAlertDialog('Username doesnt exist!');
+        } else {
+          _showAlertDialog('Unknown Error occured!');
+        }
+      });
     }
   }
 
-  //TODO change void to int and return something
   Future<void> sendLoginData() async {
-    int hello = 3;
+
     try {
       Login loginRequest = Login();
       loginRequest.username = userdata.username;
       loginRequest.password = userdata.password;
 
-      var helloResponse = await UserManagerService.instance.helloClient.loginUser(loginRequest);
+      var responseLogin = await UserManagerService.instance.helloClient.loginUser(loginRequest);
       ///do something with your response here
       setState(() {
-        hello = helloResponse.result.value;
-        print(hello);
+        loginResponse = responseLogin.result.value;
+        //print(loginResponse);
       });
     } on GrpcError catch (e) {
       ///handle all grpc errors here
