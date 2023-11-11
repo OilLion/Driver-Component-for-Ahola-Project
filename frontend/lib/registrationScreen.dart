@@ -104,7 +104,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
       elevation: 16,
       //style: const TextStyle(color: Colors.deepPurple),
       onChanged: (String? value) {
-        // This is called when the user selects an item.
+        /// This is called when the user selects an item.
         setState(() {
           dropdownValue = value!;
         });
@@ -126,49 +126,46 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     ));
   }
 
+  int registrationResponse = -1;
+
   void _handleRegisterButton() {
     final form = _formKey.currentState;
-    int registrationResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
     }
     else{
       form.save();
-      print(userdata.vehicle); //TODO delete
-      //Just for admin exception
-      if(userdata.username == 'admin'){
-        registrationResponse = 0;
-      }
 
-      //TODO send userData to Backend and register user if not exists or change to register page
-      sendRegisterData();
-      //change registrationResponse accordingly to output of sendRegisterData()
-
-      if(registrationResponse == 0) {
-        Navigator.pop(context);
-      } else if (registrationResponse == 1){
-        _showAlertDialog('Username already exists!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
+      sendRegisterData().whenComplete(() {
+        print(registrationResponse);
+        if(registrationResponse == 0) {
+          Navigator.pop(context);
+        } else if (registrationResponse == 1){
+          _showAlertDialog('Username already exists!');
+        } else {
+          _showAlertDialog('Unknown Error occured!');
+        }
+      });
     }
   }
 
   Future<void> sendRegisterData() async {
-    int hello = 3;
     try {
       Registration registration = Registration();
       registration.username = userdata.username;
       registration.password = userdata.password;
-      //TODO registration.vehicle = userdata.vehicle;
+      registration.vehicle = userdata.vehicle;
 
-      var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
-      ///do something with your response here
-      setState(() {
-        hello = registrationResponse.result.value;
-        print(hello);
-      });
+      if(registration.username != "" && registration.password != ""){
+        var responseRegistration = await UserManagerService.instance.helloClient.registerUser(registration);
+        ///do something with your response here
+        setState(() {
+          registrationResponse = responseRegistration.result.value;
+        });
+      } else{
+        registrationResponse = -1;
+      }
     } on GrpcError catch (e) {
       ///handle all grpc errors here
       ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/generated/user_manager.pbgrpc.dart';
@@ -98,9 +100,11 @@ class LoginScreenState extends State<LoginScreen>{
     ));
   }
 
+
+  int loginResponse = -1;
+
   void _handleLoginButton() {
     final form = _formKey.currentState;
-    int loginResponse = -1;
 
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
@@ -108,38 +112,37 @@ class LoginScreenState extends State<LoginScreen>{
     else{
       form.save();
 
-      //Just for admin exception
+      ///Just for admin exception
       if(userdata.username == 'admin'){
         loginResponse = 0;
       }
-      
-      //TODO send userData to Backend to check if exists
-      sendLoginData();
 
-      if(loginResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (loginResponse == 1) {
-        _showAlertDialog('Password is incorrect!');
-      } else if (loginResponse == 2) {
-        _showAlertDialog('Username doesnt exist!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
+      sendLoginData().whenComplete(() {
+        if(loginResponse == 0) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+        } else if (loginResponse == 1) {
+          _showAlertDialog('Password is incorrect!');
+        } else if (loginResponse == 2) {
+          _showAlertDialog('Username doesnt exist!');
+        } else {
+          _showAlertDialog('Unknown Error occured!');
+        }
+      });
     }
   }
 
   Future<void> sendLoginData() async {
-    int hello = 3;
+
     try {
       Login loginRequest = Login();
       loginRequest.username = userdata.username;
       loginRequest.password = userdata.password;
 
-      var helloResponse = await UserManagerService.instance.helloClient.loginUser(loginRequest);
+      var responseLogin = await UserManagerService.instance.helloClient.loginUser(loginRequest);
       ///do something with your response here
       setState(() {
-        hello = helloResponse.result.value;
-        print(hello);
+        loginResponse = responseLogin.result.value;
+        //print(loginResponse);
       });
     } on GrpcError catch (e) {
       ///handle all grpc errors here
@@ -154,60 +157,6 @@ class LoginScreenState extends State<LoginScreen>{
   void _handleRegisterButton(){
     Navigator.push(context, MaterialPageRoute(builder: (context) => const RegistrationScreen()));
   }
-
-  /*
-  Future<void> sendRegisterData() async {
-    int hello = 3;
-    try {
-      Registration registration = Registration();
-      registration.username = userdata.username;
-      registration.password = userdata.password;
-
-      var registrationResponse = await UserManagerService.instance.helloClient.registerUser(registration);
-      ///do something with your response here
-      setState(() {
-        hello = registrationResponse.result.value;
-        print(hello);
-      });
-    } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
-      print(e);
-    } catch (e) {
-      ///handle all generic errors here
-      print(e);
-    }
-  }
-
-  void _handleRegisterButton() {
-    final form = _formKey.currentState;
-    int registrationResponse = -1;
-
-    if(!form!.validate()){
-      _autoValidate = AutovalidateMode.always;
-    }
-    else{
-      form.save();
-
-      //Just for admin exception
-      if(userdata.username == 'admin'){
-        registrationResponse = 0;
-      }
-
-      //TODO send userData to Backend and register user if not exists or change to register page
-      sendRegisterData();
-      //change registrationResponse accordingly to output of sendRegisterData()
-
-      if(registrationResponse == 0) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
-      } else if (registrationResponse == 1){
-        _showAlertDialog('Username already exists!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
-      }
-    }
-  }
-   */
 
   void _showAlertDialog(String title) {
     showDialog(
