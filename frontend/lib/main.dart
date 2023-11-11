@@ -5,7 +5,7 @@ import 'loginScreen.dart';
 void main() {
       WidgetsFlutterBinding.ensureInitialized();
       UserManagerService().init();
-
+      RouteManagerService().init();
       runApp(
         const MaterialApp(home: MyApp()),
       );

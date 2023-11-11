@@ -49,20 +49,5 @@ class LoginResult extends $pb.ProtobufEnum {
   const LoginResult._($core.int v, $core.String n) : super(v, n);
 }
 
-class RouteResult extends $pb.ProtobufEnum {
-  static const RouteResult Success = RouteResult._(0, _omitEnumNames ? '' : 'Success');
-  static const RouteResult UnknownError = RouteResult._(-1, _omitEnumNames ? '' : 'UnknownError');
-
-  static const $core.List<RouteResult> values = <RouteResult> [
-    Success,
-    UnknownError,
-  ];
-
-  static final $core.Map<$core.int, RouteResult> _byValue = $pb.ProtobufEnum.initByValue(values);
-  static RouteResult? valueOf($core.int value) => _byValue[value];
-
-  const RouteResult._($core.int v, $core.String n) : super(v, n);
-}
-
 
 const _omitEnumNames = $core.bool.fromEnvironment('protobuf.omit_enum_names');
