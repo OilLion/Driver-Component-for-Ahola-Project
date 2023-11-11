@@ -39,31 +39,3 @@ service UserManager {
     rpc RegisterUser (Registration) returns (RegistrationResponse);  
     rpc LoginUser (Login) returns (LoginResponse);
 }
-
-message Route {
-    repeated Event events = 1;
-}
-
-message Routes {
-    repeated Route route = 1;
-}
-
-message Event {
-    string location = 1;
-}
-
-message RouteResponse {
-    RouteResult result = 1;
-}
-
-enum RouteResult {
-    Success = 0;
-    UnknownError = -1;
-}
-
-message Empty {}
-
-service RouteManager {
-    rpc AddRoute (Route) returns (RouteResponse);
-    rpc GetRoutes (Empty) returns (Route);
-}
