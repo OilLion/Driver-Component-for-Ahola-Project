@@ -1,0 +1,49 @@
+syntax = "proto3";
+package route_manager;
+
+message Route {
+    repeated Event events = 1;
+    string vehicle = 2;
+}
+
+message RouteReply {
+    repeated Event events = 1;
+    int32 route_id = 2;
+}
+
+message RoutesReply {
+    GetRouteResult result = 1;
+    repeated RouteReply routes = 2;
+}
+
+message Event {
+    string location = 1;
+}
+
+message AddRouteResponse {
+    AddRouteResult result = 1;
+    int32 route_id =2;
+}
+
+enum AddRouteResult {
+    AddSuccess = 0;
+    InvalidRoute = 1;
+    UnknownVehicle = 2;
+    AddUnknownError = -1;
+}
+
+enum GetRouteResult {
+    GetSuccss = 0;
+    UnauthenticatedUser = 1;
+    MalformedLoginToken = 2;
+    GetUnknownError = -1;
+}
+
+message GetRoutesRequest {
+    bytes uuid = 1;
+}
+
+service RouteManager {
+    rpc AddRoute (Route) returns (AddRouteResponse);
+    rpc GetRoutes (GetRoutesRequest) returns (RoutesReply);
+}

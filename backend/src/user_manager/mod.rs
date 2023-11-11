@@ -215,7 +215,7 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let vehicle = "LKW";
+        let vehicle = "Truck";
         // Register the driver
         assert!(user_manager
             .add_driver(username.as_str(), password.as_str(), vehicle)
@@ -231,7 +231,7 @@ mod tests {
         .unwrap();
         assert_eq!(driver.name, username);
         assert_eq!(driver.password, password);
-        assert_eq!(driver.veh_name, "LKW");
+        assert_eq!(driver.veh_name, "Truck");
         // Try logging in as the driver
         let login_token = user_manager
             .login_driver(username.as_str(), password.as_str())
@@ -256,7 +256,7 @@ mod tests {
         let (pool, user_manager, _) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let vehicle = "LKW";
+        let vehicle = "Truck";
         assert!(user_manager
             .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
@@ -278,7 +278,7 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let vehicle = "LKW";
+        let vehicle = "Truck";
         assert!(user_manager
             .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
@@ -316,7 +316,7 @@ mod tests {
         let (pool, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let vehicle = "LKW";
+        let vehicle = "Truck";
         user_manager
             .add_driver(username.as_str(), password.as_str(), vehicle)
             .await

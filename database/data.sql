@@ -1,2 +1,2 @@
 INSERT INTO Vehicle (name)
-VALUES ('LKW');
+VALUES ('Van'), ('Truck');
