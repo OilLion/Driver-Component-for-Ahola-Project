@@ -2,7 +2,7 @@ class UserData{
   String username = "";
   String password = "";
   String vehicle = "";
-  String uuid = "";
+  List<int> uuid = [];
   int duration = 0;
 
   UserData._();

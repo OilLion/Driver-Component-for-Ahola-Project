@@ -118,7 +118,7 @@ class LoginScreenState extends State<LoginScreen>{
 
       sendLoginData().whenComplete(() {
         if(loginResponse == 0) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const menuScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuScreen()));
         } else if (loginResponse == 1) {
           _showAlertDialog('Password is incorrect!');
         } else if (loginResponse == 2) {
@@ -141,7 +141,7 @@ class LoginScreenState extends State<LoginScreen>{
       ///do something with your response here
       setState(() {
         loginResponse = responseLogin.result.value;
-        UserData.instance.uuid = responseLogin.uuid.toString();
+        UserData.instance.uuid = responseLogin.uuid;
         UserData.instance.duration = responseLogin.duration.toInt();
       });
     } on GrpcError catch (e) {
