@@ -20,7 +20,6 @@ class LoginScreenState extends State<LoginScreen>{
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool passwordVisible = true;
   AutovalidateMode _autoValidate = AutovalidateMode.disabled;
-  UserData userdata = UserData();
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +51,7 @@ class LoginScreenState extends State<LoginScreen>{
           hintText: 'Your Username',
           labelText: 'Username'
       ),
-      onSaved: (value) => userdata.username = value!,
+      onSaved: (value) => UserData.instance.username = value!,
       validator: (value){
         return null;
       },
@@ -76,7 +75,7 @@ class LoginScreenState extends State<LoginScreen>{
               },
             )
         ),
-        onSaved: (value) => userdata.password = value!,
+        onSaved: (value) => UserData.instance.password = value!,
         validator: (value) {
           return null;
         },
@@ -113,7 +112,7 @@ class LoginScreenState extends State<LoginScreen>{
       form.save();
 
       ///Just for admin exception
-      if(userdata.username == 'admin'){
+      if(UserData.instance.username == 'admin'){
         loginResponse = 0;
       }
 
@@ -135,14 +134,15 @@ class LoginScreenState extends State<LoginScreen>{
 
     try {
       Login loginRequest = Login();
-      loginRequest.username = userdata.username;
-      loginRequest.password = userdata.password;
+      loginRequest.username = UserData.instance.username;
+      loginRequest.password = UserData.instance.password;
 
       var responseLogin = await UserManagerService.instance.helloClient.loginUser(loginRequest);
       ///do something with your response here
       setState(() {
         loginResponse = responseLogin.result.value;
-        //print(loginResponse);
+        UserData.instance.uuid = responseLogin.uuid.toString();
+        UserData.instance.duration = responseLogin.duration.toInt();
       });
     } on GrpcError catch (e) {
       ///handle all grpc errors here
