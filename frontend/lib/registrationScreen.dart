@@ -157,7 +157,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
       registration.vehicle = UserData.instance.vehicle;
 
       if(registration.username != "" && registration.password != ""){ //Check if username and password not empty
-        var responseRegistration = await UserManagerService.instance.helloClient.registerUser(registration);
+        var responseRegistration = await UserManagerService.instance.userManagerClient.registerUser(registration);
         ///do something with your response here
         setState(() {
           registrationResponse = responseRegistration.result.value;

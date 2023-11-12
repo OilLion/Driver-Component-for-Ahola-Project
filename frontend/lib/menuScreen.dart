@@ -120,6 +120,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       );
   }
 
+  //TODO implement Navigation to next Screen
   void _handleAccept(int index) {
     print(index);
   }
@@ -128,15 +129,18 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
 
   void _handleGetRouteButton() {
     getRoutes().whenComplete(() {
-      if(getRouteResponse == 0) {
-        print("Get Routes was successful");
-        // print(_routes.length);
-      } else if (getRouteResponse == 1) {
-        _showAlertDialog('User is not authenticated!');
-      } else if (getRouteResponse == 2) {
-        _showAlertDialog('MalformedLogintoken!');
-      } else {
-        _showAlertDialog('Unknown Error occured!');
+      switch(getRouteResponse) {
+        case 0:
+          print("Get Routes was successful");
+          break;
+        case 1:
+          _showAlertDialog('User is not authenticated!');
+          break;
+        case 2:
+          _showAlertDialog('MalformedLogintoken!');
+          break;
+        default:
+          _showAlertDialog('Unknown Error occured!');
       }
     });
   }
@@ -146,19 +150,17 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       GetRoutesRequest getRequest = GetRoutesRequest();
       getRequest.uuid = UserData.instance.uuid;
 
-      var responseGetRequest = await RouteManagerService.instance.helloClient2.getRoutes(getRequest);
-      ///do something with your response here
+      var responseGetRequest = await
+      RouteManagerService.instance.routeClient.getRoutes(getRequest);
       setState(() {
         getRouteResponse = responseGetRequest.result.value;
         _routes = responseGetRequest.routes;
-        print(responseGetRequest.routes.length);
       });
     } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
+      /// handle GRPC Errors
       print(e);
     } catch (e) {
-      ///handle all generic errors here
+      /// handle Generic Errors
       print(e);
     }
   }

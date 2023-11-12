@@ -17,7 +17,7 @@ class UserManagerService {
   static UserManagerService get instance => _instance;
   ///HelloClient is the  class that was generated for us when we ran the generation command
   ///We will pass a channel to it to intialize it
-  late UserManagerClient _helloClient;
+  late UserManagerClient _userManagerClient;
 
   ///this will be used to create a channel once we create this class.
   ///Call HelloService().init() before making any call.
@@ -26,8 +26,8 @@ class UserManagerService {
   }
 
   ///provide public access to the HelloClient instance
-  UserManagerClient get helloClient {
-    return _helloClient;
+  UserManagerClient get userManagerClient {
+    return _userManagerClient;
   }
 
   ///here we create a channel and use it to initialize the HelloClient that was generated
@@ -43,7 +43,7 @@ class UserManagerService {
       ///use this if you are connecting with Tls
       //options: const ChannelOptions(),
     );
-    _helloClient = UserManagerClient(channel);
+    _userManagerClient = UserManagerClient(channel);
   }
 }
 
@@ -61,7 +61,7 @@ class RouteManagerService {
   static RouteManagerService get instance => _instance;
   ///HelloClient is the  class that was generated for us when we ran the generation command
   ///We will pass a channel to it to intialize it
-  late RouteManagerClient _helloClient2;
+  late RouteManagerClient _routeClient;
 
   ///this will be used to create a channel once we create this class.
   ///Call HelloService().init() before making any call.
@@ -70,8 +70,8 @@ class RouteManagerService {
   }
 
   ///provide public access to the HelloClient instance
-  RouteManagerClient get helloClient2 {
-    return _helloClient2;
+  RouteManagerClient get routeClient {
+    return _routeClient;
   }
 
   ///here we create a channel and use it to initialize the HelloClient that was generated
@@ -87,7 +87,7 @@ class RouteManagerService {
       ///use this if you are connecting with Tls
       //options: const ChannelOptions(),
     );
-    _helloClient2 = RouteManagerClient(channel);
+    _routeClient = RouteManagerClient(channel);
   }
 }
 

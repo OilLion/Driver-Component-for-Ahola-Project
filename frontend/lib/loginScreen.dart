@@ -104,52 +104,47 @@ class LoginScreenState extends State<LoginScreen>{
 
   void _handleLoginButton() {
     final form = _formKey.currentState;
-
     if(!form!.validate()){
       _autoValidate = AutovalidateMode.always;
     }
     else{
       form.save();
-
-      ///Just for admin exception
-      if(UserData.instance.username == 'admin'){
-        loginResponse = 0;
-      }
-
       sendLoginData().whenComplete(() {
-        if(loginResponse == 0) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuScreen()));
-        } else if (loginResponse == 1) {
-          _showAlertDialog('Password is incorrect!');
-        } else if (loginResponse == 2) {
-          _showAlertDialog('Username doesnt exist!');
-        } else {
-          _showAlertDialog('Unknown Error occured!');
+        switch(loginResponse) {
+          case 0:
+            print("Get Routes was successful");
+            break;
+          case 1:
+            _showAlertDialog('Password is incorrect');
+            break;
+          case 2:
+            _showAlertDialog('Username doesnt exist!');
+            break;
+          default:
+            _showAlertDialog('Unknown Error occured!');
         }
       });
     }
   }
 
   Future<void> sendLoginData() async {
-
     try {
       Login loginRequest = Login();
       loginRequest.username = UserData.instance.username;
       loginRequest.password = UserData.instance.password;
 
-      var responseLogin = await UserManagerService.instance.helloClient.loginUser(loginRequest);
-      ///do something with your response here
+      var responseLogin = await
+      UserManagerService.instance.userManagerClient.loginUser(loginRequest);
       setState(() {
         loginResponse = responseLogin.result.value;
         UserData.instance.uuid = responseLogin.uuid;
         UserData.instance.duration = responseLogin.duration.toInt();
       });
     } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
+      /// handle GRPC Errors
       print(e);
     } catch (e) {
-      ///handle all generic errors here
+      /// handle Generic Errors
       print(e);
     }
   }
