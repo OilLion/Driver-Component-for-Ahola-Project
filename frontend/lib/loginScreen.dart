@@ -112,7 +112,7 @@ class LoginScreenState extends State<LoginScreen>{
       sendLoginData().whenComplete(() {
         switch(loginResponse) {
           case 0:
-            print("Get Routes was successful");
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuScreen()));
             break;
           case 1:
             _showAlertDialog('Password is incorrect');
