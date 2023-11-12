@@ -29,7 +29,6 @@ class RegistrationScreenStateful extends StatefulWidget{
 class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   AutovalidateMode _autoValidate = AutovalidateMode.disabled;
-  UserData userdata = UserData();
   bool passwordVisible = true;
   List<String> list = <String>['Truck', 'Van'];
 
@@ -63,7 +62,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
           hintText: 'Your Username',
           labelText: 'Username'
       ),
-      onSaved: (value) => userdata.username = value!,
+      onSaved: (value) => UserData.instance.username = value!,
       validator: (value){
         return null;
       },
@@ -87,7 +86,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
               },
             )
         ),
-        onSaved: (value) => userdata.password = value!,
+        onSaved: (value) => UserData.instance.password = value!,
         validator: (value) {
           return null;
         },
@@ -109,7 +108,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
           dropdownValue = value!;
         });
       },
-      onSaved: (value) => userdata.vehicle = value!,
+      onSaved: (value) => UserData.instance.vehicle = value!,
       items: list.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(
           value: value,
@@ -153,11 +152,11 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
   Future<void> sendRegisterData() async {
     try {
       Registration registration = Registration();
-      registration.username = userdata.username;
-      registration.password = userdata.password;
-      registration.vehicle = userdata.vehicle;
+      registration.username = UserData.instance.username;
+      registration.password = UserData.instance.password;
+      registration.vehicle = UserData.instance.vehicle;
 
-      if(registration.username != "" && registration.password != ""){
+      if(registration.username != "" && registration.password != ""){ //Check if username and password not empty
         var responseRegistration = await UserManagerService.instance.helloClient.registerUser(registration);
         ///do something with your response here
         setState(() {
