@@ -52,10 +52,10 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       height: 30,
       width: 120,
       child: TextButton(
-        onPressed: _handleGetRouteButton,
-        style: const ButtonStyle(backgroundColor: MaterialStatePropertyAll(Colors.blue),
-            foregroundColor: MaterialStatePropertyAll(Colors.white)),
-        child: const Text("Get Routes")
+          onPressed: _handleGetRouteButton,
+          style: const ButtonStyle(backgroundColor: MaterialStatePropertyAll(Colors.blue),
+              foregroundColor: MaterialStatePropertyAll(Colors.white)),
+          child: const Text("Get Routes")
       ),
     );
   }
@@ -64,63 +64,64 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     return
       Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                  flex: 5,
-                  child: Container(
-                      alignment: Alignment.center,
-                      //color: Colors.deepPurple[200],
-                      child: const Text(
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                          "Starting Point")
-                  )
-              ),
-              Expanded(
-                  flex: 5,
-                  child: Container(
-                    alignment: Alignment.center,
-                    //color: Colors.deepPurple[200],
-                      child: const Text(
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                          "End Point")
-                  )
-              )
-            ],
-          ),
-          SizedBox(
-            height: 500,
-            child: ListView.builder(
+          ListView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              scrollDirection: Axis.vertical,
               itemCount: _routes.length,
               itemBuilder: (context, index) {
                 return Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 5,
-                          child: Container(
-                              alignment: Alignment.center,
-                              //color: Colors.deepPurple[200],
-                              child: Text(_routes[index].events.first.location)
-                          )
-                        ),
-                        Expanded(
-                          flex: 5,
-                          child: Container(
-                              alignment: Alignment.center,
-                              //color: Colors.deepPurple[200],
-                              child: Text(_routes[index].events.last.location)
-                          )
-                        )
-                      ],
-                    ),
+                    Card(
+                      child: Column(
+                        children: [
+                          Stepper(
+                            controlsBuilder: (context, controller) {
+                              return const Row(children: []);
+                            },
+                            steps: <Step>[
+                              Step(
+                                title: Text(_routes[index].events.first.location),
+                                content: SizedBox(
+                                  height: 80,  //height of individual Routes
+                                  child: ListView.builder(
+                                    itemCount: _routes[index].events.length,
+                                    itemBuilder: (context, indexEvents) {
+                                      return Container(
+                                        alignment: Alignment.topLeft,
+                                        child: Column(
+                                          children: [
+                                            Text(_routes[index].events[indexEvents].location,
+                                           ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Step(
+                                title: Text(_routes[index].events.last.location),
+                                content: Text(_routes[index].events.last.location),
+                              ),
+                            ],
+                          ),
+                          TextButton(
+                              onPressed: ()=>_handleAccept(index),
+                              child: const Text("Accept this Route"))
+                        ],
+                      ),
+
+                    )
                   ],
                 );
-            }),
-          ),
+              }),
         ],
       );
+  }
+
+  void _handleAccept(int index) {
+    print(index);
   }
 
   int getRouteResponse = -1;
@@ -129,7 +130,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     getRoutes().whenComplete(() {
       if(getRouteResponse == 0) {
         print("Get Routes was successful");
-       // print(_routes.length);
+        // print(_routes.length);
       } else if (getRouteResponse == 1) {
         _showAlertDialog('User is not authenticated!');
       } else if (getRouteResponse == 2) {
