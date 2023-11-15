@@ -46,14 +46,13 @@ impl From<EventMessage> for Event {
 
 impl From<RouteManagerError> for AddRouteResponseMessage {
     fn from(error: RouteManagerError) -> Self {
+        use RouteManagerError as RE;
         Self {
             result: match error {
-                RouteManagerError::InvalidRoute => AddRouteResult::InvalidRoute.into(),
-                RouteManagerError::UnknownVehicle(_) => AddRouteResult::UnknownVehicle.into(),
-                RouteManagerError::UnhandledDatabaseError(_) => {
-                    AddRouteResult::AddUnknownError.into()
-                }
-                RouteManagerError::UnauthenticatedUser => AddRouteResult::AddUnknownError.into(),
+                RE::InvalidRoute => AddRouteResult::InvalidRoute.into(),
+                RE::UnknownVehicle(_) => AddRouteResult::UnknownVehicle.into(),
+                RE::UnauthenticatedUser => AddRouteResult::AddUnknownError.into(),
+                _ => AddRouteResult::AddUnknownError.into(),
             },
             route_id: -1,
         }
@@ -89,10 +88,8 @@ where
     T: From<RouteManagerError>,
 {
     match err {
-        RouteManagerError::InvalidRoute
-        | RouteManagerError::UnknownVehicle(_)
-        | RouteManagerError::UnauthenticatedUser => event!(Level::DEBUG, %err),
         RouteManagerError::UnhandledDatabaseError(_) => event!(Level::ERROR, %err),
+        _ => event!(Level::DEBUG, %err),
     };
     err.into()
 }
