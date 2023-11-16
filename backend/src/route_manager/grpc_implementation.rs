@@ -73,6 +73,25 @@ impl From<RouteManagerError> for RoutesReply {
     }
 }
 
+impl From<RouteManagerError> for SelectRouteResponse {
+    fn from(error: RouteManagerError) -> Self {
+        Self {
+            result: match error {
+                RouteManagerError::UnknownRoute(_) => RMResult::UnknownRoute.into(),
+                RouteManagerError::RouteAlreadyAssigned(_) => RMResult::RouteAlreadyAssigned.into(),
+                RouteManagerError::DriverAlreadyAssigned(_) => {
+                    RMResult::DriverAlreadyAssigned.into()
+                }
+                RouteManagerError::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
+                RouteManagerError::IncompatibelVehicle(_) => RMResult::IncompatibleVehicle.into(),
+                RouteManagerError::UnhandledDatabaseError(_)
+                | RouteManagerError::UnknownVehicle(_)
+                | RouteManagerError::InvalidRoute => RMResult::UnknownError.into(),
+            },
+        }
+    }
+}
+
 impl From<i32> for AddRouteResponse {
     fn from(route_id: i32) -> Self {
         event!(Level::INFO, route_id);
@@ -138,7 +157,19 @@ impl RouteManagerService for RouteManager {
         &self,
         request: tonic::Request<SelectRouteRequest>,
     ) -> Result<tonic::Response<SelectRouteResponse>, tonic::Status> {
-        todo!()
+        let SelectRouteRequest { route_id, uuid } = request.into_inner();
+        Ok(Response::new(if let Ok(token) = Uuid::from_slice(&uuid) {
+            self.select_route(&token, route_id).await.map_or_else(
+                log_route_manager_error_and_convert_to_message,
+                |_| SelectRouteResponse {
+                    result: RMResult::Success.into(),
+                },
+            )
+        } else {
+            SelectRouteResponse {
+                result: RMResult::MalformedLoginToken.into(),
+            }
+        }))
     }
 }
 

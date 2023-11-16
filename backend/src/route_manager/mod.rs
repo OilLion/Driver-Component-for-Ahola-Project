@@ -171,9 +171,9 @@ impl RouteManager {
         token_id: &Uuid,
         route_id: i32,
     ) -> Result<bool, RouteManagerError> {
-        let mut tx = self.database.begin().await?;
-        Self::select_route_helper(tx.as_mut(), &self.login_tokens, token_id, route_id).await?;
-        tx.commit().await?;
+        // let mut tx = self.database.begin().await?;
+        Self::select_route_helper(&self.database, &self.login_tokens, token_id, route_id).await?;
+        // tx.commit().await?;
         Ok(true)
     }
 
@@ -184,6 +184,7 @@ impl RouteManager {
         route_id: i32,
     ) -> Result<bool, RouteManagerError> {
         let mut conn = conn.acquire().await?;
+        let mut conn = conn.begin().await?;
         let token = login_tokens
             .get_token(token_id)
             .ok_or(RouteManagerError::UnauthenticatedUser)?;
@@ -243,6 +244,7 @@ impl RouteManager {
         )
         .execute(conn.as_mut())
         .await?;
+        conn.commit().await?;
         Ok(true)
     }
 
