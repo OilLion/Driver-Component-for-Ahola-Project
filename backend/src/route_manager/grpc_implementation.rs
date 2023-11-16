@@ -8,18 +8,21 @@ use grpc_route_manager::route_manager_server::RouteManager as RouteManagerServic
 use grpc_route_manager::{
     Event as EventMessage,
     Route as RouteMessage,
-    AddRouteResponse as AddRouteResponseMessage, 
-    AddRouteResult, 
+    AddRouteResponse, 
     RoutesReply,
     RouteReply,
     GetRoutesRequest,
-    GetRouteResult
+    SelectRouteRequest,
+    Result as RMResult,
 };
+
 use tonic::{Request, Response};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::types::routes::{Event, Route};
+
+use self::grpc_route_manager::SelectRouteResponse;
 
 use super::{RouteManager, RouteManagerError, _Route};
 
@@ -44,15 +47,14 @@ impl From<EventMessage> for Event {
     }
 }
 
-impl From<RouteManagerError> for AddRouteResponseMessage {
+impl From<RouteManagerError> for AddRouteResponse {
     fn from(error: RouteManagerError) -> Self {
         use RouteManagerError as RE;
         Self {
             result: match error {
-                RE::InvalidRoute => AddRouteResult::InvalidRoute.into(),
-                RE::UnknownVehicle(_) => AddRouteResult::UnknownVehicle.into(),
-                RE::UnauthenticatedUser => AddRouteResult::AddUnknownError.into(),
-                _ => AddRouteResult::AddUnknownError.into(),
+                RE::InvalidRoute => RMResult::InvalidRoute.into(),
+                RE::UnknownVehicle(_) => RMResult::UnknownVehicle.into(),
+                _ => RMResult::UnknownError.into(),
             },
             route_id: -1,
         }
@@ -63,21 +65,19 @@ impl From<RouteManagerError> for RoutesReply {
     fn from(error: RouteManagerError) -> Self {
         Self {
             result: match error {
-                RouteManagerError::UnauthenticatedUser => {
-                    GetRouteResult::UnauthenticatedUser.into()
-                }
-                _ => GetRouteResult::GetUnknownError.into(),
+                RouteManagerError::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
+                _ => RMResult::UnknownError.into(),
             },
             routes: Vec::new(),
         }
     }
 }
 
-impl From<i32> for AddRouteResponseMessage {
+impl From<i32> for AddRouteResponse {
     fn from(route_id: i32) -> Self {
         event!(Level::INFO, route_id);
         Self {
-            result: AddRouteResult::AddSuccess.into(),
+            result: RMResult::Success.into(),
             route_id,
         }
     }
@@ -100,7 +100,7 @@ impl RouteManagerService for RouteManager {
     async fn add_route(
         &self,
         route_request: tonic::Request<RouteMessage>,
-    ) -> Result<Response<AddRouteResponseMessage>, tonic::Status> {
+    ) -> Result<Response<AddRouteResponse>, tonic::Status> {
         Ok(Response::new(
             self.add_route(route_request.into_inner().into())
                 .await
@@ -120,17 +120,25 @@ impl RouteManagerService for RouteManager {
                 self.get_routes(token).await.map_or_else(
                     log_route_manager_error_and_convert_to_message,
                     |routes| RoutesReply {
-                        result: GetRouteResult::GetSuccss.into(),
+                        result: RMResult::Success.into(),
                         routes: routes.map(|route| route.into()).collect(),
                     },
                 )
             } else {
                 RoutesReply {
-                    result: GetRouteResult::MalformedLoginToken.into(),
+                    result: RMResult::MalformedLoginToken.into(),
                     routes: Vec::new(),
                 }
             },
         ))
+    }
+
+    #[instrument]
+    async fn select_route(
+        &self,
+        request: tonic::Request<SelectRouteRequest>,
+    ) -> Result<tonic::Response<SelectRouteResponse>, tonic::Status> {
+        todo!()
     }
 }
 
