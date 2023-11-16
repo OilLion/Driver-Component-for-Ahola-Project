@@ -78,7 +78,8 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
             hintText: 'Your Password',
             labelText: 'Password',
             suffixIcon: IconButton(
-              icon: Icon(passwordVisible ? Icons.visibility : Icons.visibility_off),
+              icon: Icon(
+                  passwordVisible ? Icons.visibility : Icons.visibility_off),
               onPressed: () {
                 setState(() {
                   passwordVisible = !passwordVisible;
@@ -100,10 +101,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     return DropdownButtonFormField<String>(
       value: dropdownValue,
       icon: const Icon(Icons.arrow_downward),
-      elevation: 16,
-      //style: const TextStyle(color: Colors.deepPurple),
       onChanged: (String? value) {
-        /// This is called when the user selects an item.
         setState(() {
           dropdownValue = value!;
         });
@@ -158,7 +156,6 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
 
       if(registration.username != "" && registration.password != ""){ //Check if username and password not empty
         var responseRegistration = await UserManagerService.instance.userManagerClient.registerUser(registration);
-        ///do something with your response here
         setState(() {
           registrationResponse = responseRegistration.result.value;
         });
@@ -166,11 +163,10 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
         registrationResponse = -1;
       }
     } on GrpcError catch (e) {
-      ///handle all grpc errors here
-      ///errors such us UNIMPLEMENTED,UNIMPLEMENTED etc...
+      /// handle GRPC Errors
       print(e);
     } catch (e) {
-      ///handle all generic errors here
+      /// handle Generic Errors
       print(e);
     }
   }
