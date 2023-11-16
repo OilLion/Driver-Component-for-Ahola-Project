@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/generated/route_manager.pb.dart';
 import 'package:frontend/generated/route_manager.pbgrpc.dart';
+import 'package:frontend/routeDisplay.dart';
 import 'package:grpc/grpc.dart';
 import 'userData.dart';
 
@@ -27,7 +28,6 @@ class MenuScreenStateful extends StatefulWidget{
 }
 
 class MenuScreenStatefulState extends State<MenuScreenStateful>{
-  //final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   List<RouteReply> _routes = [];
 
   @override
@@ -119,9 +119,9 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           });
   }
 
-  //TODO implement Navigation to next Screen
   void _handleAccept(int index) {
-    print(index);
+    UserData.instance.activeRoute = _routes[index];
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
   }
 
   int getRouteResponse = -1;
