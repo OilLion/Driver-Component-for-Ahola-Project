@@ -1,11 +1,10 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 pub mod grpc_implementation;
 
 use sqlx::{
     error::DatabaseError, postgres::PgArguments, query::Query, Acquire, Error, Pool, Postgres,
-    Transaction,
 };
 use uuid::Uuid;
 
@@ -77,12 +76,11 @@ impl RouteManager {
         .await
         .map_err(|error| match error {
             sqlx::Error::Database(error)
-                if error
-                    .code()
-                    .is_some_and(|code| code == DATABASE_FOREIGN_KEY_VIOLATION)
-                    && error
-                        .constraint()
-                        .is_some_and(|contraint| contraint == "fk_delivery_associati_vehicle") =>
+                if Self::check_error(
+                    error.as_ref(),
+                    DATABASE_FOREIGN_KEY_VIOLATION,
+                    "fk_delivery_associati_vehicle",
+                ) =>
             {
                 RouteManagerError::UnknownVehicle(route.vehicle.clone())
             }
@@ -171,9 +169,7 @@ impl RouteManager {
         token_id: &Uuid,
         route_id: i32,
     ) -> Result<bool, RouteManagerError> {
-        // let mut tx = self.database.begin().await?;
         Self::select_route_helper(&self.database, &self.login_tokens, token_id, route_id).await?;
-        // tx.commit().await?;
         Ok(true)
     }
 
@@ -248,7 +244,7 @@ impl RouteManager {
         Ok(true)
     }
 
-    fn check_error(error: impl DatabaseError, code: &str, constraint: &str) -> bool {
+    fn check_error(error: &dyn DatabaseError, code: &str, constraint: &str) -> bool {
         error.code().is_some_and(|error_code| error_code == code)
             && error
                 .constraint()
@@ -262,11 +258,7 @@ struct _Route(i32, Vec<Event>);
 #[cfg(test)]
 mod route_manager_tests {
     use sqlx::{postgres::PgPoolOptions, Acquire, Transaction};
-    use std::{
-        fs::read,
-        sync::Arc,
-        time::{Duration, Instant},
-    };
+    use std::time::{Duration, Instant};
 
     use crate::{
         constants::DATABASE_URL,
