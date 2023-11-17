@@ -84,7 +84,10 @@ impl From<Error> for SelectRouteResponse {
                 Error::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
                 Error::IncompatibelVehicle(_) => RMResult::IncompatibleVehicle.into(),
                 Error::UnhandledDatabaseError(_)
+                | Error::DriverNotAssigned(_)
                 | Error::UnknownVehicle(_)
+                | Error::RouteUpdateSmallerThanCurrent(..)
+                | Error::RouteUpdateExceedsEventCount(_, _)
                 | Error::InvalidRoute => RMResult::UnknownError.into(),
             },
         }

@@ -35,7 +35,7 @@ impl RouteManager {
         Ok(route_id)
     }
 
-    async fn add_route_helper(
+    pub(super) async fn add_route_helper(
         conn: impl Acquire<'_, Database = Postgres> + Send,
         route: Route,
     ) -> Result<i32, Error> {
@@ -140,22 +140,23 @@ impl RouteManager {
     }
 
     async fn select_route(&self, token_id: &Uuid, route_id: i32) -> Result<bool, Error> {
-        Self::select_route_helper(&self.database, &self.login_tokens, token_id, route_id).await?;
+        let token = self
+            .login_tokens
+            .get_token(token_id)
+            .ok_or(Error::UnauthenticatedUser)?;
+        let name = token.user.as_str();
+        Self::select_route_helper(&self.database, &name, route_id).await?;
         Ok(true)
     }
 
-    async fn select_route_helper(
+    pub(super) async fn select_route_helper(
         conn: impl Acquire<'_, Database = Postgres>,
-        login_tokens: &LoginTokens,
-        token_id: &Uuid,
+        name: &str,
+
         route_id: i32,
     ) -> Result<bool, Error> {
         let mut conn = conn.acquire().await?;
         let mut conn = conn.begin().await?;
-        let token = login_tokens
-            .get_token(token_id)
-            .ok_or(Error::UnauthenticatedUser)?;
-        let name = token.user.as_str();
         let route = sqlx::query!(
             "
                 SELECT veh_name, name FROM delivery
@@ -226,28 +227,26 @@ struct _Route(i32, Vec<Event>);
 
 #[cfg(test)]
 mod route_manager_tests {
-    use sqlx::{postgres::PgPoolOptions, Acquire, Transaction};
+    use sqlx::Transaction;
     use std::time::{Duration, Instant};
 
-    use crate::{
-        constants::DATABASE_URL,
-        types::{routes::Event, LoginToken},
-    };
+    use crate::test_utils;
+
+    use crate::types::{routes::Event, LoginToken};
     use uuid::Uuid;
 
     use super::*;
 
     #[tokio::test]
     async fn select_route() {
-        let (pool, _, tokens) = setup().await;
+        let (pool, _, _) = setup().await;
         let mut tx = pool.begin().await.unwrap();
-        let (username, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
-        let route = generate_route(vehicle, 3);
+        let (username, vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
+        let route = test_utils::generate_route(vehicle, 3);
         let route_id = RouteManager::add_route_helper(tx.as_mut(), route)
             .await
             .unwrap();
-        let token_id = add_user_to_tokens(&tokens, username.clone());
-        RouteManager::select_route_helper(tx.as_mut(), &tokens, &token_id, route_id)
+        RouteManager::select_route_helper(tx.as_mut(), &username, route_id)
             .await
             .unwrap();
         let route = sqlx::query!(
@@ -275,26 +274,17 @@ mod route_manager_tests {
         tx.rollback().await.unwrap();
     }
 
-    fn add_user_to_tokens(tokens: &LoginTokens, name: String) -> Uuid {
-        let login_token = LoginToken::new(name, Instant::now() + Duration::from_secs(100));
-        let id = login_token.id;
-        tokens.insert_token(login_token.id, login_token);
-        id
-    }
-
     #[tokio::test]
     async fn select_route_bad_vehicle_assigned() {
-        let (pool, _, tokens) = setup().await;
+        let (pool, _, _) = setup().await;
         let mut tx = pool.begin().await.unwrap();
-        let (username, _) = generate_test_user_and_vehicle(tx.as_mut()).await;
-        let (_, control_vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
-        let route = generate_route(control_vehicle.clone(), 3);
+        let (username, _) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
+        let (_, control_vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
+        let route = test_utils::generate_route(control_vehicle.clone(), 3);
         let route_id = RouteManager::add_route_helper(tx.as_mut(), route)
             .await
             .unwrap();
-        let token_id = add_user_to_tokens(&tokens, username.clone());
-        let result =
-            RouteManager::select_route_helper(tx.as_mut(), &tokens, &token_id, route_id).await;
+        let result = RouteManager::select_route_helper(tx.as_mut(), &username, route_id).await;
         assert!(
             result.is_err_and(|err| if let Error::IncompatibelVehicle(veh) = err {
                 veh == control_vehicle
@@ -422,9 +412,9 @@ mod route_manager_tests {
 
     #[tokio::test]
     async fn get_routes() {
-        let (pool, route_manager, tokens) = setup().await;
+        let (pool, _, tokens) = setup().await;
         let mut tx = pool.begin().await.unwrap();
-        let (username, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
+        let (username, vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
         let login_token =
             LoginToken::new(username.clone(), Instant::now() + Duration::from_secs(100));
         tokens.insert_token(login_token.id, login_token.clone());
@@ -438,53 +428,11 @@ mod route_manager_tests {
         tx.rollback().await.unwrap();
     }
 
-    /// Generates a test user and a test vehicle and puts them into the database
-    /// returns (user, vehicle)
-    async fn generate_test_user_and_vehicle(
-        conn: impl Acquire<'_, Database = Postgres>,
-    ) -> (String, String) {
-        let user = Uuid::new_v4().to_string();
-        let vehicle = Uuid::new_v4().to_string();
-        let mut conn = conn.acquire().await.unwrap();
-        sqlx::query!(
-            "
-                INSERT INTO vehicle (name)
-                VALUES ($1)
-            ",
-            vehicle
-        )
-        .execute(&mut *conn)
-        // .execute(&pool)
-        .await
-        .unwrap();
-        sqlx::query!(
-            "
-                INSERT INTO driver (name, veh_name, password)
-                VALUES ($1, $2, '123');
-            ",
-            user,
-            vehicle,
-        )
-        // .execute(&pool)
-        .execute(&mut *conn)
-        .await
-        .unwrap();
-        (user, vehicle)
-    }
-
     async fn setup() -> (Pool<Postgres>, RouteManager, LoginTokens) {
         let tokens = LoginTokens::new();
-        let pool = get_database_pool().await;
+        let pool = test_utils::get_database_pool().await;
         let rout_manager = RouteManager::new(pool.clone(), tokens.clone());
         (pool, rout_manager, tokens)
-    }
-
-    async fn get_database_pool() -> Pool<Postgres> {
-        PgPoolOptions::new()
-            .max_connections(5)
-            .connect(DATABASE_URL)
-            .await
-            .unwrap()
     }
 
     async fn generate_test_routes(
@@ -495,7 +443,7 @@ mod route_manager_tests {
         event_count: usize,
     ) -> Vec<Route> {
         let routes: Vec<_> = (0..route_count)
-            .map(|_| generate_route(vehicle.into(), event_count))
+            .map(|_| test_utils::generate_route(vehicle.into(), event_count))
             .collect();
         for route in &routes {
             let route_id = sqlx::query!(
@@ -516,14 +464,5 @@ mod route_manager_tests {
             }
         }
         routes
-    }
-
-    fn generate_route(vehicle: String, event_count: usize) -> Route {
-        let events = (0..event_count)
-            .map(|_| Event {
-                location: Uuid::new_v4().to_string(),
-            })
-            .collect();
-        Route { events, vehicle }
     }
 }
