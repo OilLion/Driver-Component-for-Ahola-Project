@@ -20,11 +20,12 @@ use tonic::{Request, Response};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+use crate::error::Error;
 use crate::types::routes::{Event, Route};
 
 use self::grpc_route_manager::SelectRouteResponse;
 
-use super::{RouteManager, RouteManagerError, _Route};
+use super::{RouteManager, _Route};
 
 impl From<RouteMessage> for Route {
     fn from(route_message: RouteMessage) -> Self {
@@ -47,9 +48,9 @@ impl From<EventMessage> for Event {
     }
 }
 
-impl From<RouteManagerError> for AddRouteResponse {
-    fn from(error: RouteManagerError) -> Self {
-        use RouteManagerError as RE;
+impl From<Error> for AddRouteResponse {
+    fn from(error: Error) -> Self {
+        use Error as RE;
         Self {
             result: match error {
                 RE::InvalidRoute => RMResult::InvalidRoute.into(),
@@ -61,11 +62,11 @@ impl From<RouteManagerError> for AddRouteResponse {
     }
 }
 
-impl From<RouteManagerError> for RoutesReply {
-    fn from(error: RouteManagerError) -> Self {
+impl From<Error> for RoutesReply {
+    fn from(error: Error) -> Self {
         Self {
             result: match error {
-                RouteManagerError::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
+                Error::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
                 _ => RMResult::UnknownError.into(),
             },
             routes: Vec::new(),
@@ -73,20 +74,18 @@ impl From<RouteManagerError> for RoutesReply {
     }
 }
 
-impl From<RouteManagerError> for SelectRouteResponse {
-    fn from(error: RouteManagerError) -> Self {
+impl From<Error> for SelectRouteResponse {
+    fn from(error: Error) -> Self {
         Self {
             result: match error {
-                RouteManagerError::UnknownRoute(_) => RMResult::UnknownRoute.into(),
-                RouteManagerError::RouteAlreadyAssigned(_) => RMResult::RouteAlreadyAssigned.into(),
-                RouteManagerError::DriverAlreadyAssigned(_) => {
-                    RMResult::DriverAlreadyAssigned.into()
-                }
-                RouteManagerError::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
-                RouteManagerError::IncompatibelVehicle(_) => RMResult::IncompatibleVehicle.into(),
-                RouteManagerError::UnhandledDatabaseError(_)
-                | RouteManagerError::UnknownVehicle(_)
-                | RouteManagerError::InvalidRoute => RMResult::UnknownError.into(),
+                Error::UnknownRoute(_) => RMResult::UnknownRoute.into(),
+                Error::RouteAlreadyAssigned(_) => RMResult::RouteAlreadyAssigned.into(),
+                Error::DriverAlreadyAssigned(_) => RMResult::DriverAlreadyAssigned.into(),
+                Error::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
+                Error::IncompatibelVehicle(_) => RMResult::IncompatibleVehicle.into(),
+                Error::UnhandledDatabaseError(_)
+                | Error::UnknownVehicle(_)
+                | Error::InvalidRoute => RMResult::UnknownError.into(),
             },
         }
     }
@@ -102,12 +101,12 @@ impl From<i32> for AddRouteResponse {
     }
 }
 
-fn log_route_manager_error_and_convert_to_message<T>(err: RouteManagerError) -> T
+fn log_route_manager_error_and_convert_to_message<T>(err: Error) -> T
 where
-    T: From<RouteManagerError>,
+    T: From<Error>,
 {
     match err {
-        RouteManagerError::UnhandledDatabaseError(_) => event!(Level::ERROR, %err),
+        Error::UnhandledDatabaseError(_) => event!(Level::ERROR, %err),
         _ => event!(Level::DEBUG, %err),
     };
     err.into()
