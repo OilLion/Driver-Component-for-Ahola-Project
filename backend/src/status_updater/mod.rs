@@ -15,7 +15,7 @@ async fn update_status<'a>(
     conn: impl Acquire<'a, Database = Postgres>,
     driver: &str,
     step: i32,
-) -> Result<bool, crate::error::Error> {
+) -> Result<(bool, i32), crate::error::Error> {
     let mut conn = conn.acquire().await?;
     let (id, current_step, total_steps) = {
         let delivery = sqlx::query!(
@@ -62,7 +62,7 @@ async fn update_status<'a>(
         )
         .execute(conn.as_mut())
         .await?;
-        Ok(step == total_steps)
+        Ok((step == total_steps, id))
     } else {
         Err(crate::error::Error::RouteUpdateSmallerThanCurrent(
             step,
@@ -92,18 +92,18 @@ mod tests {
         // updating status forward works
         assert!(update_status(tx.as_mut(), &user, 2)
             .await
-            .is_ok_and(|done| done == false));
+            .is_ok_and(|done| done.0 == false));
         assert!(update_status(tx.as_mut(), &user, 3)
             .await
-            .is_ok_and(|done| done == false));
+            .is_ok_and(|done| done.0 == false));
         // even when skipping numbers
         assert!(update_status(tx.as_mut(), &user, 6)
             .await
-            .is_ok_and(|done| done == false));
+            .is_ok_and(|done| done.0 == false));
         // or with repeats
         assert!(update_status(tx.as_mut(), &user, 6)
             .await
-            .is_ok_and(|done| done == false));
+            .is_ok_and(|done| done.0 == false));
         // going back is no good though
         let result = update_status(tx.as_mut(), &user, 3).await;
         assert!(matches!(
@@ -119,7 +119,7 @@ mod tests {
         // final update returns true
         assert!(update_status(tx.as_mut(), &user, 10)
             .await
-            .is_ok_and(|done| done));
+            .is_ok_and(|done| done.0));
         tx.rollback().await.unwrap();
     }
 }
