@@ -1,0 +1,26 @@
+syntax = "proto3";
+package status_updater;
+
+message StatusUpdateRequest {
+  bytes uuid = 1; 
+  int32 step = 2;
+}
+
+message StatusUpdateResponse {
+  bool done = 1;
+}
+
+service DriverUpdater {
+  rpc UpdateStatus (StatusUpdateRequest) returns (StatusUpdateResponse);
+}
+
+message PlanningUpdate {
+  int32 id = 1;
+  int32 step = 2;
+}
+
+message PlanningResponse {  }
+
+service PlanningUpdater {
+  rpc StatusUpdate (PlanningUpdate) returns (PlanningResponse);
+}
