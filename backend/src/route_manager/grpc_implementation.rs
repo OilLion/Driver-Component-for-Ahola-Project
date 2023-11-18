@@ -88,6 +88,7 @@ impl From<Error> for SelectRouteResponse {
                 | Error::UnknownVehicle(_)
                 | Error::RouteUpdateSmallerThanCurrent(..)
                 | Error::RouteUpdateExceedsEventCount(_, _)
+                | Error::MalformedTokenId
                 | Error::InvalidRoute => RMResult::UnknownError.into(),
             },
         }
