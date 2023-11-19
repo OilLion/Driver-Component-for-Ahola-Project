@@ -21,6 +21,8 @@ pub struct Args {
     /// URL for the postgres database.
     #[arg(short, long, value_name = "URL of the database")]
     database_url: Option<String>,
+    /// URL of the planning server.
+    planning_url: Option<String>,
 }
 
 impl Args {
@@ -43,5 +45,11 @@ impl Args {
             .as_ref()
             .map(|url| url.as_str())
             .unwrap_or(crate::constants::DATABASE_URL)
+    }
+    pub fn planning_url(&self) -> &str {
+        self.planning_url
+            .as_ref()
+            .map(|url| url.as_str())
+            .unwrap_or(crate::constants::PLANNING_URL)
     }
 }

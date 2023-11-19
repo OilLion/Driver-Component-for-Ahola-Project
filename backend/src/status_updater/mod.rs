@@ -1,10 +1,6 @@
-use std::sync::{mpsc::channel, Arc};
-
 use crate::types::LoginTokens;
-use anyhow::anyhow;
 use sqlx::{Acquire, Pool, Postgres};
-use thiserror::Error;
-use tokio::task::JoinError;
+use tokio::task::{JoinError, JoinSet};
 use tonic::Request;
 use tracing::{event, Level};
 use uuid::Uuid;
@@ -29,7 +25,6 @@ pub struct PlanningClient {
     database: Pool<Postgres>,
     messages: tokio::sync::mpsc::Receiver<Message>,
     service_url: &'static str,
-    updates: tokio::task::JoinSet<Result<(), Message>>,
 }
 
 impl PlanningClient {
@@ -37,24 +32,23 @@ impl PlanningClient {
         database: Pool<Postgres>,
         messages: tokio::sync::mpsc::Receiver<Message>,
         service_url: String,
-        updates: tokio::task::JoinSet<Result<(), Message>>,
     ) -> Self {
         let service_url = service_url.leak();
         Self {
             database,
             messages,
             service_url,
-            updates,
         }
     }
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> Result<(), sqlx::Error> {
+        let mut updates: JoinSet<Result<(), Message>> = JoinSet::new();
         loop {
             tokio::select! {
                 Some(message) = self.messages.recv() => {
                     let task = update_planning(message, self.service_url);
-                    self.updates.spawn(task);
+                    updates.spawn(task);
                 }
-                Some(join_result) = self.updates.join_next(), if !self.updates.is_empty() => {
+                Some(join_result) = updates.join_next(), if !updates.is_empty() => {
                     Self::handle_join_result(&self.database, join_result).await
                 }
                 else => event!(Level::ERROR, "select failed")
@@ -78,6 +72,19 @@ impl PlanningClient {
             }
         }
     }
+}
+
+pub fn create_status_updater_and_client(
+    database: Pool<Postgres>,
+    login_tokens: LoginTokens,
+    capacity: usize,
+    service_url: String,
+) -> (StatusUpdater, PlanningClient) {
+    let (send, rec) = tokio::sync::mpsc::channel(capacity);
+    (
+        StatusUpdater::new(database.clone(), login_tokens, send),
+        PlanningClient::new(database, rec, service_url),
+    )
 }
 
 async fn update_planning(message: Message, service_url: &'static str) -> Result<(), Message> {
@@ -141,7 +148,7 @@ struct Message {
 }
 
 impl StatusUpdater {
-    async fn new(
+    fn new(
         database: Pool<Postgres>,
         login_tokens: LoginTokens,
         messages: tokio::sync::mpsc::Sender<Message>,
