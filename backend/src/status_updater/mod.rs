@@ -33,6 +33,20 @@ pub struct PlanningClient {
 }
 
 impl PlanningClient {
+    fn new(
+        database: Pool<Postgres>,
+        messages: tokio::sync::mpsc::Receiver<Message>,
+        service_url: String,
+        updates: tokio::task::JoinSet<Result<(), Message>>,
+    ) -> Self {
+        let service_url = service_url.leak();
+        Self {
+            database,
+            messages,
+            service_url,
+            updates,
+        }
+    }
     pub async fn run(mut self) {
         loop {
             tokio::select! {
@@ -245,6 +259,7 @@ async fn update_status<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::{PLANNING_SOCKET, PLANNING_URL};
     use crate::test_utils;
     use crate::{route_manager::RouteManager, test_utils::generate_test_user_and_vehicle};
 
@@ -317,5 +332,30 @@ mod tests {
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
         assert_eq!(unsent.next().unwrap().step, 5);
+    }
+
+    #[tokio::test]
+    async fn test_sending_update() {
+        use grpc_implementation::grpc_status_updater::planning_updater_server::PlanningUpdaterServer;
+        use grpc_implementation::updater_server_planning::PlanningUpdaterTester;
+        let (send, mut rec) = tokio::sync::mpsc::channel(1024);
+        let planning_server = PlanningUpdaterTester { channel: send };
+        let server = tonic::transport::Server::builder()
+            .add_service(PlanningUpdaterServer::new(planning_server))
+            .serve(PLANNING_SOCKET);
+        tokio::spawn(server);
+        let message = Message {
+            route_id: 42,
+            step: 4,
+        };
+        // message arrives at planning with correct id and step
+        update_planning(message, PLANNING_URL).await.unwrap();
+        if let Some(update) = rec.recv().await {
+            assert_eq!((update.id, update.step), (message.route_id, message.step));
+        }
+        let return_message = update_planning(message, "http:://localhost:888")
+            .await
+            .unwrap_err();
+        assert_eq!(message, return_message);
     }
 }
