@@ -91,16 +91,53 @@ async fn mark_unsent<'a>(
     conn: impl Acquire<'a, Database = Postgres>,
     message: Message,
 ) -> Result<(), sqlx::Error> {
-    todo!()
+    let mut conn = conn.acquire().await?;
+    let Message { route_id, step } = message;
+    sqlx::query!(
+        "SELECT insert_or_update_outstanding_delivery($1, $2)",
+        route_id,
+        step
+    )
+    .execute(conn.as_mut())
+    .await?;
+    Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
+async fn retrieve_unsent<'a, 'b>(
+    conn: impl Acquire<'a, Database = Postgres>,
+) -> Result<Vec<Message>, sqlx::Error>
+where
+    'b: 'a,
+{
+    let mut conn = conn.acquire().await?;
+    sqlx::query_as!(
+        Message,
+        "
+            SELECT id as route_id, current_step as step FROM outstandingupdates
+        "
+    )
+    .fetch_all(conn.as_mut())
+    .await
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct Message {
     route_id: i32,
     step: i32,
 }
 
 impl StatusUpdater {
+    async fn new(
+        database: Pool<Postgres>,
+        login_tokens: LoginTokens,
+        messages: tokio::sync::mpsc::Sender<Message>,
+    ) -> Self {
+        Self {
+            login_tokens,
+            database,
+            messages,
+        }
+    }
     async fn update_status(&self, token_id: &[u8], step: i32) -> Result<bool, crate::error::Error> {
         let token_id =
             Uuid::from_slice(token_id).map_err(|_| crate::error::Error::MalformedTokenId)?;
@@ -255,5 +292,30 @@ mod tests {
             .await
             .is_ok_and(|done| done.0));
         tx.rollback().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_mark_outstanding() {
+        let pool = test_utils::get_database_pool().await;
+        let mut tx = pool.begin().await.unwrap();
+        let (_, test_vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
+        let route = test_utils::generate_route(test_vehicle, 10);
+        let route_id = RouteManager::add_route_helper(tx.as_mut(), route)
+            .await
+            .unwrap();
+        let message = Message { route_id, step: 3 };
+        mark_unsent(tx.as_mut(), message).await.unwrap();
+        let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
+        assert_eq!(unsent.next().unwrap(), message);
+        // increasing step works:
+        let message = Message { route_id, step: 5 };
+        mark_unsent(tx.as_mut(), message).await.unwrap();
+        let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
+        assert_eq!(unsent.next().unwrap(), message);
+        // decreasing does not affect it:
+        let message = Message { route_id, step: 2 };
+        mark_unsent(tx.as_mut(), message).await.unwrap();
+        let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
+        assert_eq!(unsent.next().unwrap().step, 5);
     }
 }
