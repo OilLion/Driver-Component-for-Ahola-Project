@@ -125,6 +125,15 @@ create unique index VEHICLE_PK on Vehicle (
 name
 );
 
+/*==============================================================*/
+/* Table: Outstanding Updates                                   */
+/*==============================================================*/
+create table OutstandingUpdates (
+   id                   INT4                 not null,
+   current_step         INT4                 not null,
+   constraint PK_OUTSTANDING_UPDATE primary key (id)
+);
+
 alter table Delivery
    add constraint FK_DELIVERY_ASSOCIATI_DRIVER foreign key (name)
       references Driver (name)
