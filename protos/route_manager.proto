@@ -1,6 +1,19 @@
 syntax = "proto3";
 package route_manager;
 
+enum Result {
+    Success = 0;
+    InvalidRoute = 1;
+    UnknownVehicle = 2;
+    UnknownRoute = 3;
+    RouteAlreadyAssigned = 4;
+    DriverAlreadyAssigned = 5;
+    UnauthenticatedUser = 6;
+    IncompatibleVehicle = 7;
+    MalformedLoginToken = 8;
+    UnknownError = -1;
+}
+
 message Route {
     repeated Event events = 1;
     string vehicle = 2;
@@ -12,7 +25,7 @@ message RouteReply {
 }
 
 message RoutesReply {
-    GetRouteResult result = 1;
+    Result result = 1;
     repeated RouteReply routes = 2;
 }
 
@@ -21,29 +34,25 @@ message Event {
 }
 
 message AddRouteResponse {
-    AddRouteResult result = 1;
+    Result result = 1;
     int32 route_id =2;
-}
-
-enum AddRouteResult {
-    AddSuccess = 0;
-    InvalidRoute = 1;
-    UnknownVehicle = 2;
-    AddUnknownError = -1;
-}
-
-enum GetRouteResult {
-    GetSuccss = 0;
-    UnauthenticatedUser = 1;
-    MalformedLoginToken = 2;
-    GetUnknownError = -1;
 }
 
 message GetRoutesRequest {
     bytes uuid = 1;
 }
 
+message SelectRouteRequest {
+    int32 route_id = 1;
+    bytes uuid = 2;
+}
+
+message SelectRouteResponse {
+    Result result = 1;    
+}
+
 service RouteManager {
     rpc AddRoute (Route) returns (AddRouteResponse);
     rpc GetRoutes (GetRoutesRequest) returns (RoutesReply);
+    rpc SelectRoute (SelectRouteRequest) returns (SelectRouteResponse);
 }

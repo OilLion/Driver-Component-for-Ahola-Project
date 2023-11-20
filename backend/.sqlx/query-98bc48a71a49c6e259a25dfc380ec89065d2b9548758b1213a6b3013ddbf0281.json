@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": " \n            DELETE FROM delivery\n            WHERE id=$1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "98bc48a71a49c6e259a25dfc380ec89065d2b9548758b1213a6b3013ddbf0281"
+}

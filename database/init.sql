@@ -35,6 +35,7 @@ create table Delivery (
    id                   SERIAL               not null,
    Veh_name             VARCHAR(254)         not null,
    name                 VARCHAR(254)         null, 
+   current_step         INT4                 DEFAULT 1,
    constraint PK_DELIVERY primary key (id)
 );
 
@@ -122,6 +123,15 @@ create table Vehicle (
 /*==============================================================*/
 create unique index VEHICLE_PK on Vehicle (
 name
+);
+
+/*==============================================================*/
+/* Table: Outstanding Updates                                   */
+/*==============================================================*/
+create table OutstandingUpdates (
+   id                   INT4                 not null,
+   current_step         INT4                 not null,
+   constraint PK_OUTSTANDING_UPDATE primary key (id)
 );
 
 alter table Delivery

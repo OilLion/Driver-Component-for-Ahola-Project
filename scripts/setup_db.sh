@@ -22,6 +22,7 @@ else
   docker cp $sql_dir $container:setup_files
   docker exec $container psql -U $user -d $database -f setup_files/init.sql
   docker exec $container psql -U $user -d $database -f setup_files/data.sql
+  docker exec $container psql -U $user -d $database -f setup_files/proc.sql
   docker exec $container rm -rf setup_files
 fi
 
