@@ -135,7 +135,7 @@ class RouteReply extends $pb.GeneratedMessage {
 
 class RoutesReply extends $pb.GeneratedMessage {
   factory RoutesReply({
-    GetRouteResult? result,
+    Result? result,
     $core.Iterable<RouteReply>? routes,
   }) {
     final $result = create();
@@ -152,7 +152,7 @@ class RoutesReply extends $pb.GeneratedMessage {
   factory RoutesReply.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'RoutesReply', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
-    ..e<GetRouteResult>(1, _omitFieldNames ? '' : 'result', $pb.PbFieldType.OE, defaultOrMaker: GetRouteResult.GetSuccss, valueOf: GetRouteResult.valueOf, enumValues: GetRouteResult.values)
+    ..e<Result>(1, _omitFieldNames ? '' : 'result', $pb.PbFieldType.OE, defaultOrMaker: Result.Success, valueOf: Result.valueOf, enumValues: Result.values)
     ..pc<RouteReply>(2, _omitFieldNames ? '' : 'routes', $pb.PbFieldType.PM, subBuilder: RouteReply.create)
     ..hasRequiredFields = false
   ;
@@ -179,9 +179,9 @@ class RoutesReply extends $pb.GeneratedMessage {
   static RoutesReply? _defaultInstance;
 
   @$pb.TagNumber(1)
-  GetRouteResult get result => $_getN(0);
+  Result get result => $_getN(0);
   @$pb.TagNumber(1)
-  set result(GetRouteResult v) { setField(1, v); }
+  set result(Result v) { setField(1, v); }
   @$pb.TagNumber(1)
   $core.bool hasResult() => $_has(0);
   @$pb.TagNumber(1)
@@ -243,7 +243,7 @@ class Event extends $pb.GeneratedMessage {
 
 class AddRouteResponse extends $pb.GeneratedMessage {
   factory AddRouteResponse({
-    AddRouteResult? result,
+    Result? result,
     $core.int? routeId,
   }) {
     final $result = create();
@@ -260,7 +260,7 @@ class AddRouteResponse extends $pb.GeneratedMessage {
   factory AddRouteResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'AddRouteResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
-    ..e<AddRouteResult>(1, _omitFieldNames ? '' : 'result', $pb.PbFieldType.OE, defaultOrMaker: AddRouteResult.AddSuccess, valueOf: AddRouteResult.valueOf, enumValues: AddRouteResult.values)
+    ..e<Result>(1, _omitFieldNames ? '' : 'result', $pb.PbFieldType.OE, defaultOrMaker: Result.Success, valueOf: Result.valueOf, enumValues: Result.values)
     ..a<$core.int>(2, _omitFieldNames ? '' : 'routeId', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
@@ -287,9 +287,9 @@ class AddRouteResponse extends $pb.GeneratedMessage {
   static AddRouteResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
-  AddRouteResult get result => $_getN(0);
+  Result get result => $_getN(0);
   @$pb.TagNumber(1)
-  set result(AddRouteResult v) { setField(1, v); }
+  set result(Result v) { setField(1, v); }
   @$pb.TagNumber(1)
   $core.bool hasResult() => $_has(0);
   @$pb.TagNumber(1)
@@ -353,6 +353,120 @@ class GetRoutesRequest extends $pb.GeneratedMessage {
   $core.bool hasUuid() => $_has(0);
   @$pb.TagNumber(1)
   void clearUuid() => clearField(1);
+}
+
+class SelectRouteRequest extends $pb.GeneratedMessage {
+  factory SelectRouteRequest({
+    $core.int? routeId,
+    $core.List<$core.int>? uuid,
+  }) {
+    final $result = create();
+    if (routeId != null) {
+      $result.routeId = routeId;
+    }
+    if (uuid != null) {
+      $result.uuid = uuid;
+    }
+    return $result;
+  }
+  SelectRouteRequest._() : super();
+  factory SelectRouteRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SelectRouteRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SelectRouteRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
+    ..a<$core.int>(1, _omitFieldNames ? '' : 'routeId', $pb.PbFieldType.O3)
+    ..a<$core.List<$core.int>>(2, _omitFieldNames ? '' : 'uuid', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SelectRouteRequest clone() => SelectRouteRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SelectRouteRequest copyWith(void Function(SelectRouteRequest) updates) => super.copyWith((message) => updates(message as SelectRouteRequest)) as SelectRouteRequest;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SelectRouteRequest create() => SelectRouteRequest._();
+  SelectRouteRequest createEmptyInstance() => create();
+  static $pb.PbList<SelectRouteRequest> createRepeated() => $pb.PbList<SelectRouteRequest>();
+  @$core.pragma('dart2js:noInline')
+  static SelectRouteRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SelectRouteRequest>(create);
+  static SelectRouteRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get routeId => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set routeId($core.int v) { $_setSignedInt32(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasRouteId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRouteId() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get uuid => $_getN(1);
+  @$pb.TagNumber(2)
+  set uuid($core.List<$core.int> v) { $_setBytes(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasUuid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUuid() => clearField(2);
+}
+
+class SelectRouteResponse extends $pb.GeneratedMessage {
+  factory SelectRouteResponse({
+    Result? result,
+  }) {
+    final $result = create();
+    if (result != null) {
+      $result.result = result;
+    }
+    return $result;
+  }
+  SelectRouteResponse._() : super();
+  factory SelectRouteResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SelectRouteResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SelectRouteResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
+    ..e<Result>(1, _omitFieldNames ? '' : 'result', $pb.PbFieldType.OE, defaultOrMaker: Result.Success, valueOf: Result.valueOf, enumValues: Result.values)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SelectRouteResponse clone() => SelectRouteResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SelectRouteResponse copyWith(void Function(SelectRouteResponse) updates) => super.copyWith((message) => updates(message as SelectRouteResponse)) as SelectRouteResponse;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SelectRouteResponse create() => SelectRouteResponse._();
+  SelectRouteResponse createEmptyInstance() => create();
+  static $pb.PbList<SelectRouteResponse> createRepeated() => $pb.PbList<SelectRouteResponse>();
+  @$core.pragma('dart2js:noInline')
+  static SelectRouteResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SelectRouteResponse>(create);
+  static SelectRouteResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Result get result => $_getN(0);
+  @$pb.TagNumber(1)
+  set result(Result v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasResult() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearResult() => clearField(1);
 }
 
 

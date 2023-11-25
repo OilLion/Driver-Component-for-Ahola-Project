@@ -29,6 +29,10 @@ class RouteManagerClient extends $grpc.Client {
       '/route_manager.RouteManager/GetRoutes',
       ($0.GetRoutesRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) => $0.RoutesReply.fromBuffer(value));
+  static final _$selectRoute = $grpc.ClientMethod<$0.SelectRouteRequest, $0.SelectRouteResponse>(
+      '/route_manager.RouteManager/SelectRoute',
+      ($0.SelectRouteRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) => $0.SelectRouteResponse.fromBuffer(value));
 
   RouteManagerClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -42,6 +46,10 @@ class RouteManagerClient extends $grpc.Client {
 
   $grpc.ResponseFuture<$0.RoutesReply> getRoutes($0.GetRoutesRequest request, {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getRoutes, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.SelectRouteResponse> selectRoute($0.SelectRouteRequest request, {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$selectRoute, request, options: options);
   }
 }
 
@@ -64,6 +72,13 @@ abstract class RouteManagerServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetRoutesRequest.fromBuffer(value),
         ($0.RoutesReply value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SelectRouteRequest, $0.SelectRouteResponse>(
+        'SelectRoute',
+        selectRoute_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.SelectRouteRequest.fromBuffer(value),
+        ($0.SelectRouteResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.AddRouteResponse> addRoute_Pre($grpc.ServiceCall call, $async.Future<$0.Route> request) async {
@@ -74,6 +89,11 @@ abstract class RouteManagerServiceBase extends $grpc.Service {
     return getRoutes(call, await request);
   }
 
+  $async.Future<$0.SelectRouteResponse> selectRoute_Pre($grpc.ServiceCall call, $async.Future<$0.SelectRouteRequest> request) async {
+    return selectRoute(call, await request);
+  }
+
   $async.Future<$0.AddRouteResponse> addRoute($grpc.ServiceCall call, $0.Route request);
   $async.Future<$0.RoutesReply> getRoutes($grpc.ServiceCall call, $0.GetRoutesRequest request);
+  $async.Future<$0.SelectRouteResponse> selectRoute($grpc.ServiceCall call, $0.SelectRouteRequest request);
 }
