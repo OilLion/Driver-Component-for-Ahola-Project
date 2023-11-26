@@ -6,6 +6,7 @@ void main() {
       WidgetsFlutterBinding.ensureInitialized();
       UserManagerService().init();
       RouteManagerService().init();
+      StatusUpdaterService().init();
       runApp(
         const MaterialApp(home: MyApp()),
       );

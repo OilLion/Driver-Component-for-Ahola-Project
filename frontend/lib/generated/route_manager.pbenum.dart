@@ -13,42 +13,35 @@ import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
 
-class AddRouteResult extends $pb.ProtobufEnum {
-  static const AddRouteResult AddSuccess = AddRouteResult._(0, _omitEnumNames ? '' : 'AddSuccess');
-  static const AddRouteResult InvalidRoute = AddRouteResult._(1, _omitEnumNames ? '' : 'InvalidRoute');
-  static const AddRouteResult UnknownVehicle = AddRouteResult._(2, _omitEnumNames ? '' : 'UnknownVehicle');
-  static const AddRouteResult AddUnknownError = AddRouteResult._(-1, _omitEnumNames ? '' : 'AddUnknownError');
+class Result extends $pb.ProtobufEnum {
+  static const Result Success = Result._(0, _omitEnumNames ? '' : 'Success');
+  static const Result InvalidRoute = Result._(1, _omitEnumNames ? '' : 'InvalidRoute');
+  static const Result UnknownVehicle = Result._(2, _omitEnumNames ? '' : 'UnknownVehicle');
+  static const Result UnknownRoute = Result._(3, _omitEnumNames ? '' : 'UnknownRoute');
+  static const Result RouteAlreadyAssigned = Result._(4, _omitEnumNames ? '' : 'RouteAlreadyAssigned');
+  static const Result DriverAlreadyAssigned = Result._(5, _omitEnumNames ? '' : 'DriverAlreadyAssigned');
+  static const Result UnauthenticatedUser = Result._(6, _omitEnumNames ? '' : 'UnauthenticatedUser');
+  static const Result IncompatibleVehicle = Result._(7, _omitEnumNames ? '' : 'IncompatibleVehicle');
+  static const Result MalformedLoginToken = Result._(8, _omitEnumNames ? '' : 'MalformedLoginToken');
+  static const Result UnknownError = Result._(-1, _omitEnumNames ? '' : 'UnknownError');
 
-  static const $core.List<AddRouteResult> values = <AddRouteResult> [
-    AddSuccess,
+  static const $core.List<Result> values = <Result> [
+    Success,
     InvalidRoute,
     UnknownVehicle,
-    AddUnknownError,
-  ];
-
-  static final $core.Map<$core.int, AddRouteResult> _byValue = $pb.ProtobufEnum.initByValue(values);
-  static AddRouteResult? valueOf($core.int value) => _byValue[value];
-
-  const AddRouteResult._($core.int v, $core.String n) : super(v, n);
-}
-
-class GetRouteResult extends $pb.ProtobufEnum {
-  static const GetRouteResult GetSuccss = GetRouteResult._(0, _omitEnumNames ? '' : 'GetSuccss');
-  static const GetRouteResult UnauthenticatedUser = GetRouteResult._(1, _omitEnumNames ? '' : 'UnauthenticatedUser');
-  static const GetRouteResult MalformedLoginToken = GetRouteResult._(2, _omitEnumNames ? '' : 'MalformedLoginToken');
-  static const GetRouteResult GetUnknownError = GetRouteResult._(-1, _omitEnumNames ? '' : 'GetUnknownError');
-
-  static const $core.List<GetRouteResult> values = <GetRouteResult> [
-    GetSuccss,
+    UnknownRoute,
+    RouteAlreadyAssigned,
+    DriverAlreadyAssigned,
     UnauthenticatedUser,
+    IncompatibleVehicle,
     MalformedLoginToken,
-    GetUnknownError,
+    UnknownError,
   ];
 
-  static final $core.Map<$core.int, GetRouteResult> _byValue = $pb.ProtobufEnum.initByValue(values);
-  static GetRouteResult? valueOf($core.int value) => _byValue[value];
+  static final $core.Map<$core.int, Result> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static Result? valueOf($core.int value) => _byValue[value];
 
-  const GetRouteResult._($core.int v, $core.String n) : super(v, n);
+  const Result._($core.int v, $core.String n) : super(v, n);
 }
 
 

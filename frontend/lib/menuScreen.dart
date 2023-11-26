@@ -119,9 +119,55 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           });
   }
 
+  int acceptRouteResponse = -1;
+
   void _handleAccept(int index) {
-    UserData.instance.activeRoute = _routes[index];
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
+    acceptRoute(index).whenComplete(() {
+      switch(acceptRouteResponse) {
+        case 0:
+          //print("successful!");
+          UserData.instance.activeRoute = _routes[index];
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
+          break;
+        case 3:
+          _showAlertDialog('Unknown Route');
+          break;
+        case 4:
+          _showAlertDialog('Route already assigned!');
+          break;
+        case 5:
+          _showAlertDialog('DriverAlreadyAssigned!');
+          break;
+        case 6:
+          _showAlertDialog('Unauthenticated User!');
+          break;
+        case 8:
+          _showAlertDialog('Malformed Login Token');
+          break;
+        default:
+          _showAlertDialog('Unknown Error occured!');
+      }
+    });
+  }
+
+  Future<void> acceptRoute(int index) async {
+    try {
+      SelectRouteRequest selectRequest = SelectRouteRequest();
+      selectRequest.routeId = _routes[index].routeId;
+      selectRequest.uuid = UserData.instance.uuid;
+
+      var responseSelectRequest = await
+      RouteManagerService.instance.routeClient.selectRoute(selectRequest);
+      setState(() {
+        acceptRouteResponse = responseSelectRequest.result.value;
+      });
+    } on GrpcError catch (e) {
+      /// handle GRPC Errors
+      print(e);
+    } catch (e) {
+      /// handle Generic Errors
+      print(e);
+    }
   }
 
   int getRouteResponse = -1;
@@ -130,13 +176,16 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     getRoutes().whenComplete(() {
       switch(getRouteResponse) {
         case 0:
-          print("Get Routes was successful");
+          //print("Get Routes was successful");
           break;
-        case 1:
-          _showAlertDialog('User is not authenticated!');
+        case 3:
+          _showAlertDialog('Unknown Route');
           break;
-        case 2:
-          _showAlertDialog('MalformedLogintoken!');
+        case 6:
+          _showAlertDialog('Unauthenticated User!');
+          break;
+        case 8:
+          _showAlertDialog('Malformed Login Token');
           break;
         default:
           _showAlertDialog('Unknown Error occured!');
