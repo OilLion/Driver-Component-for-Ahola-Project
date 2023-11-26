@@ -1,7 +1,13 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
+import 'package:frontend/client.dart';
 import 'package:frontend/userData.dart';
+import 'package:grpc/grpc.dart';
 import 'generated/route_manager.pb.dart';
 import 'package:frontend/menuScreen.dart';
+
+import 'generated/status_updater.pb.dart';
 
 class RouteDisplay extends StatelessWidget {
   const RouteDisplay({super.key});
@@ -66,12 +72,13 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
   Stepper stepper() {
     return Stepper(
       controlsBuilder: (context, ControlsDetails details) {
+        final isLastStep = currentStep == getSteps().length -2;
         return Row(
           children: [
             Expanded(
               child: ElevatedButton(
                 onPressed: details.onStepContinue,
-                child: const Text('Next'),
+                child: Text(isLastStep ? 'Finish Delivery' : 'Next Step'),
               ),
             ),
           ],
@@ -80,15 +87,37 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
       steps: getSteps(),
       currentStep: currentStep,
       onStepContinue: () {
-        final isLastStep = currentStep == getSteps().length -1;
-        if (isLastStep) {
-          // TODO finish route
-        } else {
-          setState(() => currentStep += 1);
-          // TODO send Update
-        }
+        setState(() => currentStep += 1);
+        updateStatus(currentStep).whenComplete(() {
+          if(statusUpdateResponse) {
+            Navigator.pop(context);
+          }
+        });
       },
       onStepCancel: currentStep == 0 ? null : () => setState(() => currentStep -= 1),
     );
+  }
+
+  bool statusUpdateResponse = false;
+
+  Future<void> updateStatus(int currentStep) async {
+    try {
+      currentStep += 1;
+      StatusUpdateRequest statusUpdateRequest = StatusUpdateRequest();
+      statusUpdateRequest.uuid = UserData.instance.uuid;
+      statusUpdateRequest.step = currentStep;
+
+      var responseUpdateRequest = await
+      StatusUpdaterService.instance.statusUpdaterClient.updateStatus(statusUpdateRequest);
+      setState(() {
+        statusUpdateResponse = responseUpdateRequest.done;
+      });
+    } on GrpcError catch (e) {
+      /// handle GRPC Errors
+      print(e);
+    } catch (e) {
+      /// handle Generic Errors
+      print(e);
+    }
   }
 }

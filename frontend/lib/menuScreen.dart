@@ -125,7 +125,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     acceptRoute(index).whenComplete(() {
       switch(acceptRouteResponse) {
         case 0:
-          print("successful!");
+          //print("successful!");
           UserData.instance.activeRoute = _routes[index];
           Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
           break;
@@ -153,7 +153,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
   Future<void> acceptRoute(int index) async {
     try {
       SelectRouteRequest selectRequest = SelectRouteRequest();
-      selectRequest.routeId = index + 1;
+      selectRequest.routeId = _routes[index].routeId;
       selectRequest.uuid = UserData.instance.uuid;
 
       var responseSelectRequest = await
@@ -176,7 +176,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     getRoutes().whenComplete(() {
       switch(getRouteResponse) {
         case 0:
-          print("Get Routes was successful");
+          //print("Get Routes was successful");
           break;
         case 3:
           _showAlertDialog('Unknown Route');

@@ -135,7 +135,6 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
       form.save();
 
       sendRegisterData().whenComplete(() {
-        print(registrationResponse);
         if(registrationResponse == 0) {
           Navigator.pop(context);
         } else if (registrationResponse == 1){
