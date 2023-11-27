@@ -15,6 +15,7 @@ class RouteDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('routeDisplayScreen'),
       appBar: AppBar(
         title: const Text('Route Display'),
       ),

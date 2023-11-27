@@ -47,6 +47,7 @@ class LoginScreenState extends State<LoginScreen>{
 
   TextFormField userNameField() {
     return (TextFormField(  // Username
+      key: const Key('userNameField'),
       decoration: const InputDecoration(
           icon: Icon(Icons.account_box),
           hintText: 'Your Username',
@@ -62,6 +63,7 @@ class LoginScreenState extends State<LoginScreen>{
 
   TextFormField userPasswordField() {
     return (TextFormField(  // Password
+        key: const Key('passwordField'),
         obscureText: passwordVisible,
         decoration: InputDecoration(
             icon: const Icon(Icons.password),
@@ -87,6 +89,7 @@ class LoginScreenState extends State<LoginScreen>{
   Center loginButton() {
     return (Center(
       child: ElevatedButton(
+        key: const Key('login'),
         onPressed: _handleLoginButton,
         child: const Text('Log In'),
       ),
