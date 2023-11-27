@@ -6,7 +6,11 @@ import 'package:frontend/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  
+  String routeIdToAccept = '5';
+  String userName = 'Oli';
+  String password = '1234';
+
+
   testWidgets('Whole App Test',
       (WidgetTester tester) async {
     /// Setup
@@ -18,8 +22,8 @@ void main() {
     final Finder userNameField = find.byKey(const Key('userNameField'));
     final Finder passwordField = find.byKey(const Key('passwordField'));
 
-    await tester.enterText(userNameField, 'Oli');
-    await tester.enterText(passwordField, '1234');
+    await tester.enterText(userNameField, userName);
+    await tester.enterText(passwordField, password);
     await tester.pumpAndSettle();
     await tester.tap(loginButton);
     await Future.delayed(const Duration(seconds: 1));
@@ -36,10 +40,10 @@ void main() {
     await Future.delayed(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('5')), findsOneWidget);
+    expect(find.byKey(Key(routeIdToAccept)), findsOneWidget);
 
     /// Accept Route
-    final Finder acceptRouteButton = find.byKey(const Key('5'));
+    final Finder acceptRouteButton = find.byKey(Key(routeIdToAccept));
 
     await tester.tap(acceptRouteButton);
     await Future.delayed(const Duration(seconds: 2));
