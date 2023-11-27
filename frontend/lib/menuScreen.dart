@@ -12,6 +12,7 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('menuScreen'),
       appBar: AppBar(
         title: const Text('Menu Screen'),
       ),
@@ -52,6 +53,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       height: 30,
       width: 120,
       child: TextButton(
+        key: const Key('getRoutesButton'),
           onPressed: _handleGetRouteButton,
           style: const ButtonStyle(
               backgroundColor: MaterialStatePropertyAll(Colors.blue),
@@ -108,6 +110,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
                           ],
                         ),
                         TextButton(
+                            key: Key(_routes[index].routeId.toString()),
                             onPressed: ()=>_handleAccept(index),
                             child: const Text("Accept this Route"))
                       ],
