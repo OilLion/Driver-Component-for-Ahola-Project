@@ -152,10 +152,10 @@ alter table Driver
 alter table Driver
    add constraint FK_DRIVER_ASSOCIATI_DELIVERY foreign key (id)
       references Delivery (id)
-      on delete restrict on update restrict;
+      on delete set null on update restrict;
 
 alter table Event
    add constraint FK_EVENT_ASSOCIATI_DELIVERY foreign key (Del_id)
       references Delivery (id)
-      on delete restrict on update restrict;
+      on delete cascade on update restrict;
 
