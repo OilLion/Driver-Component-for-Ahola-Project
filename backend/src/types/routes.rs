@@ -2,6 +2,7 @@
 pub struct Event {
     pub location: String,
 }
+#[derive(Clone, Debug)]
 pub struct Route {
     pub events: Vec<Event>,
     pub vehicle: String,
