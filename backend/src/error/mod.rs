@@ -48,3 +48,15 @@ impl From<Error> for Status {
         Self::new(code, error.to_string())
     }
 }
+
+/// Checks if the sqlx error is a database error and matches the code and constaint
+pub fn check_error(error: &sqlx::Error, code: &str, constraint: &str) -> bool {
+    if let sqlx::Error::Database(error) = error {
+        error.code().is_some_and(|error_code| error_code == code)
+            && error
+                .constraint()
+                .is_some_and(|error_constraint| error_constraint == constraint)
+    } else {
+        false
+    }
+}

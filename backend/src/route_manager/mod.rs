@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
-    error::Error,
+    error::{check_error, Error},
     sql::insert_route,
     types::{
         routes::{Event, Route},
@@ -34,28 +34,24 @@ impl RouteManager {
         Ok(route_id)
     }
 
-    pub(super) async fn add_route_helper<'a>(
+    pub(super) async fn add_route_helper(
         conn: &mut PgConnection,
         route: Route,
     ) -> Result<i32, Error> {
         if route.events.len() < 2 {
             Err(Error::InvalidRoute)
         } else {
-            insert_route(conn.as_mut(), &route)
-                .await
-                .map_err(|error| match error {
-                    sqlx::Error::Database(error)
-                        if Self::check_error(
-                            error.as_ref(),
-                            DATABASE_FOREIGN_KEY_VIOLATION,
-                            "fk_delivery_associati_vehicle",
-                        ) =>
-                    {
-                        Error::UnknownVehicle(route.vehicle.clone())
-                    }
-                    err => err.into(),
-                })
-                .map_err(|err| err.into())
+            insert_route(conn.as_mut(), &route).await.map_err(|error| {
+                if check_error(
+                    &error,
+                    DATABASE_FOREIGN_KEY_VIOLATION,
+                    "fk_delivery_associati_vehicle",
+                ) {
+                    Error::UnknownVehicle(route.vehicle.clone())
+                } else {
+                    error.into()
+                }
+            })
         }
     }
 
@@ -184,13 +180,6 @@ impl RouteManager {
         .await?;
         conn.commit().await?;
         Ok(true)
-    }
-
-    fn check_error(error: &dyn DatabaseError, code: &str, constraint: &str) -> bool {
-        error.code().is_some_and(|error_code| error_code == code)
-            && error
-                .constraint()
-                .is_some_and(|error_constraint| error_constraint == constraint)
     }
 }
 
