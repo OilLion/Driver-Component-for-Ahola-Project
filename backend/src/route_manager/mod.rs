@@ -10,7 +10,7 @@ use crate::{
         assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
     },
     types::{
-        routes::{DriverRoute, Event, Route},
+        routes::{DriverRoute, Route},
         LoginTokens,
     },
 };
@@ -114,9 +114,6 @@ impl RouteManager {
     }
 }
 
-#[derive(Debug)]
-struct _Route(i32, Vec<Event>);
-
 #[cfg(test)]
 mod route_manager_tests {
     use sqlx::Transaction;
@@ -141,28 +138,12 @@ mod route_manager_tests {
         RouteManager::select_route_helper(tx.as_mut(), &username, route_id)
             .await
             .unwrap();
-        let route = sqlx::query!(
-            "
-                SELECT * FROM delivery
-                WHERE id = $1
-            ",
-            route_id
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        let user = sqlx::query!(
-            "
-                SELECT * FROM driver
-                WHERE name = $1
-            ",
-            username
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        assert!(user.id.is_some_and(|id| id == route.id));
-        assert!(route.name.is_some_and(|name| name == user.name));
+        let route = crate::sql::get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = crate::sql::get_driver_info(tx.as_mut(), &username)
+            .await
+            .unwrap();
+        assert!(user.route.is_some_and(|id| id == route_id));
+        assert!(route.driver.is_some_and(|name| name == username));
         tx.rollback().await.unwrap();
     }
 
@@ -184,28 +165,12 @@ mod route_manager_tests {
                 panic!("{}", err)
             })
         );
-        let route = sqlx::query!(
-            "
-                SELECT * FROM delivery
-                WHERE id = $1
-            ",
-            route_id
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        let user = sqlx::query!(
-            "
-                SELECT * FROM driver
-                WHERE name = $1
-            ",
-            username
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        assert!(user.id.is_none());
-        assert!(route.name.is_none());
+        let route = crate::sql::get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = crate::sql::get_driver_info(tx.as_mut(), &username)
+            .await
+            .unwrap();
+        assert!(!user.is_assigned());
+        assert!(!route.is_assigned());
     }
 
     #[tokio::test]
