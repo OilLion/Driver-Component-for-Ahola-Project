@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 pub mod grpc_implementation;
 
-use sqlx::{error::DatabaseError, Acquire, PgConnection, Pool, Postgres};
+use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
@@ -113,35 +113,36 @@ impl RouteManager {
             .get_token(token_id)
             .ok_or(Error::UnauthenticatedUser)?;
         let name = token.user.as_str();
-        Self::select_route_helper(&self.database, &name, route_id).await?;
+        let mut conn = self.database.acquire().await?;
+        Self::select_route_helper(conn.as_mut(), &name, route_id).await?;
         Ok(true)
     }
 
     pub(super) async fn select_route_helper(
-        conn: impl Acquire<'_, Database = Postgres>,
+        conn: &'_ mut PgConnection,
         name: &str,
         route_id: i32,
     ) -> Result<bool, Error> {
-        let mut conn = conn.acquire().await?;
-        let mut conn = conn.begin().await?;
-        let route = get_route(conn.as_mut(), route_id)
+        let conn = conn.acquire().await?;
+        let mut tx = conn.begin().await?;
+        let route = get_route(tx.as_mut(), route_id)
             .await
             .map_err(|error| match error {
                 sqlx::Error::RowNotFound => Error::UnknownRoute(route_id),
                 err => err.into(),
             })?;
-        if route.driver.is_some() {
+        if route.is_assigned() {
             return Err(Error::RouteAlreadyAssigned(route_id));
         }
-        let driver_info = get_driver_info(conn.as_mut(), name).await?;
-        if driver_info.route.is_some() {
+        let driver_info = get_driver_info(tx.as_mut(), name).await?;
+        if driver_info.is_assigned() {
             return Err(Error::DriverAlreadyAssigned(name.into()));
         }
         if driver_info.vehicle != route.vehicle {
             return Err(Error::IncompatibelVehicle(route.vehicle.into()));
         }
-        assign_driver_to_route(conn.as_mut(), name, route_id).await?;
-        conn.commit().await?;
+        assign_driver_to_route(tx.as_mut(), name, route_id).await?;
+        tx.commit().await?;
         Ok(true)
     }
 }

@@ -37,6 +37,12 @@ pub struct DbDelivery {
     pub driver: Option<String>,
 }
 
+impl DbDelivery {
+    pub fn is_assigned(&self) -> bool {
+        self.driver.is_some()
+    }
+}
+
 pub async fn get_route(conn: Connection<'_>, id: i32) -> Result<DbDelivery> {
     sqlx::query_as!(
         DbDelivery,
@@ -54,6 +60,12 @@ pub async fn get_route(conn: Connection<'_>, id: i32) -> Result<DbDelivery> {
 pub struct DbDriverInfo {
     pub vehicle: String,
     pub route: Option<i32>,
+}
+
+impl DbDriverInfo {
+    pub fn is_assigned(&self) -> bool {
+        self.route.is_some()
+    }
 }
 
 pub async fn get_driver_info(conn: Connection<'_>, name: &str) -> Result<DbDriverInfo> {
