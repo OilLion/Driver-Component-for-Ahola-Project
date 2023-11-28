@@ -2,12 +2,16 @@ use std::collections::BTreeMap;
 
 pub mod grpc_implementation;
 
-use sqlx::{error::DatabaseError, postgres::PgArguments, query::Query, Acquire, Pool, Postgres};
+use sqlx::{
+    error::DatabaseError, postgres::PgArguments, query::Query, Acquire, PgConnection, Pool,
+    Postgres,
+};
 use uuid::Uuid;
 
 use crate::{
     constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
     error::Error,
+    sql::insert_route,
     types::{
         routes::{Event, Route},
         LoginTokens,
@@ -31,40 +35,33 @@ impl RouteManager {
         if route.events.len() < 2 {
             return Err(Error::InvalidRoute);
         }
-        let route_id = Self::add_route_helper(&self.database, route).await?;
+        let mut conn = self.database.acquire().await?;
+        let route_id = Self::add_route_helper(&mut conn, route).await?;
         Ok(route_id)
     }
 
-    pub(super) async fn add_route_helper(
-        conn: impl Acquire<'_, Database = Postgres> + Send,
+    pub(super) async fn add_route_helper<'a>(
+        conn: &mut PgConnection,
         route: Route,
     ) -> Result<i32, Error> {
-        let mut conn = conn.acquire().await?;
         if route.events.len() < 2 {
             return Err(Error::InvalidRoute);
         }
         // insert a new route and retreive the id
-        let route_id = sqlx::query!(
-            "INSERT INTO DELIVERY (veh_name)
-                            VALUES ($1)
-                            RETURNING id",
-            route.vehicle
-        )
-        .fetch_one(conn.as_mut())
-        .await
-        .map_err(|error| match error {
-            sqlx::Error::Database(error)
-                if Self::check_error(
-                    error.as_ref(),
-                    DATABASE_FOREIGN_KEY_VIOLATION,
-                    "fk_delivery_associati_vehicle",
-                ) =>
-            {
-                Error::UnknownVehicle(route.vehicle.clone())
-            }
-            err => err.into(),
-        })?
-        .id;
+        let route_id = insert_route(conn.as_mut(), &route)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::Database(error)
+                    if Self::check_error(
+                        error.as_ref(),
+                        DATABASE_FOREIGN_KEY_VIOLATION,
+                        "fk_delivery_associati_vehicle",
+                    ) =>
+                {
+                    Error::UnknownVehicle(route.vehicle.clone())
+                }
+                err => err.into(),
+            })?;
         let event_insert_queries = Self::route_event_insert_queries(&route_id, route.events.iter());
         for insert in event_insert_queries {
             insert.execute(conn.as_mut()).await?;
