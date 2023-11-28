@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
     error::{check_error, Error},
-    sql::insert_route,
+    sql::{assign_driver_to_route, get_driver_info, get_route, insert_route},
     types::{
         routes::{Event, Route},
         LoginTokens,
@@ -120,64 +120,27 @@ impl RouteManager {
     pub(super) async fn select_route_helper(
         conn: impl Acquire<'_, Database = Postgres>,
         name: &str,
-
         route_id: i32,
     ) -> Result<bool, Error> {
         let mut conn = conn.acquire().await?;
         let mut conn = conn.begin().await?;
-        let route = sqlx::query!(
-            "
-                SELECT veh_name, name FROM delivery
-                where id=$1
-            ",
-            route_id
-        )
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(|error| match error {
-            sqlx::Error::RowNotFound => Error::UnknownRoute(route_id),
-            err => err.into(),
-        })?;
-        if route.name.is_some() {
+        let route = get_route(conn.as_mut(), route_id)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::RowNotFound => Error::UnknownRoute(route_id),
+                err => err.into(),
+            })?;
+        if route.driver.is_some() {
             return Err(Error::RouteAlreadyAssigned(route_id));
         }
-        let driver = sqlx::query!(
-            "
-                SELECT veh_name, id FROM driver
-                where name=$1
-            ",
-            name
-        )
-        .fetch_one(&mut *conn)
-        .await?;
-        if driver.id.is_some() {
+        let driver_info = get_driver_info(conn.as_mut(), name).await?;
+        if driver_info.route.is_some() {
             return Err(Error::DriverAlreadyAssigned(name.into()));
         }
-        if driver.veh_name != route.veh_name {
-            return Err(Error::IncompatibelVehicle(route.veh_name.into()));
+        if driver_info.vehicle != route.vehicle {
+            return Err(Error::IncompatibelVehicle(route.vehicle.into()));
         }
-        sqlx::query!(
-            "
-                UPDATE driver
-                SET id = $1
-                WHERE driver.name= $2
-            ",
-            route_id,
-            name
-        )
-        .execute(conn.as_mut())
-        .await?;
-        sqlx::query!(
-            "
-                UPDATE delivery
-                SET name=$1
-                WHERE id=$2
-            ",
-            name,
-            route_id
-        )
-        .execute(conn.as_mut())
-        .await?;
+        assign_driver_to_route(conn.as_mut(), name, route_id).await?;
         conn.commit().await?;
         Ok(true)
     }
