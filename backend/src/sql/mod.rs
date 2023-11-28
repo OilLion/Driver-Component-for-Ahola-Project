@@ -1,4 +1,4 @@
-use crate::types::routes::Route;
+use crate::types::routes::{DriverRoute, Event, Route};
 use sqlx::PgConnection;
 
 type Connection<'a> = &'a mut PgConnection;
@@ -106,4 +106,36 @@ pub async fn assign_driver_to_route(conn: Connection<'_>, name: &str, id: i32) -
     .execute(conn.as_mut())
     .await?;
     Ok(())
+}
+
+pub async fn retrieve_routes_for_user(
+    connection: Connection<'_>,
+    user: &str,
+) -> Result<impl Iterator<Item = DriverRoute>> {
+    use std::collections::BTreeMap;
+    let mut routes: BTreeMap<i32, DriverRoute> = BTreeMap::new();
+    sqlx::query!(
+        "
+        SELECT de.id, ev.location, ev.step FROM
+        driver dr, delivery de, event ev
+        WHERE dr.name = $1
+        AND   dr.veh_name = de.veh_name
+        AND   de.id = ev.del_id
+        ORDER BY de.id, ev.step
+        ",
+        user
+    )
+    .fetch_all(&mut *connection)
+    .await?
+    .into_iter()
+    .for_each(|event| {
+        routes
+            .entry(event.id)
+            .or_insert_with(|| DriverRoute::new(event.id))
+            .events
+            .push(Event {
+                location: event.location,
+            });
+    });
+    Ok(routes.into_values())
 }

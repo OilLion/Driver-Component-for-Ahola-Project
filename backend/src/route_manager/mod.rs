@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 pub mod grpc_implementation;
 
 use sqlx::{Acquire, PgConnection, Pool, Postgres};
@@ -8,9 +6,11 @@ use uuid::Uuid;
 use crate::{
     constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
     error::{check_error, Error},
-    sql::{assign_driver_to_route, get_driver_info, get_route, insert_route},
+    sql::{
+        assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
+    },
     types::{
-        routes::{Event, Route},
+        routes::{DriverRoute, Event, Route},
         LoginTokens,
     },
 };
@@ -55,56 +55,23 @@ impl RouteManager {
         }
     }
 
-    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = _Route> + '_, Error> {
-        Self::get_route_helper(&self.database, &self.login_tokens, &token_id).await
+    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = DriverRoute>, Error> {
+        let mut conn = self.database.acquire().await?;
+        Self::get_route_helper(conn.as_mut(), &self.login_tokens, &token_id).await
     }
 
     async fn get_route_helper(
-        conn: impl Acquire<'_, Database = Postgres>,
+        conn: &mut PgConnection,
         login_tokens: &LoginTokens,
         token_id: &Uuid,
-    ) -> Result<impl Iterator<Item = _Route>, Error> {
+    ) -> Result<impl Iterator<Item = DriverRoute>, Error> {
         let login_token = login_tokens
             .get_token(&token_id)
             .ok_or(Error::UnauthenticatedUser)?;
         let user_name = login_token.user.as_str();
-        let values = Self::retrieve_routes_for_user(conn, user_name).await?;
-        Ok(values.into_values())
-    }
-
-    async fn retrieve_routes_for_user<'a, A>(
-        connection: A,
-        user: &str,
-    ) -> Result<BTreeMap<i32, _Route>, sqlx::Error>
-    where
-        A: Acquire<'a, Database = Postgres>,
-    {
-        let mut connection = connection.acquire().await?;
-        let mut routes: BTreeMap<i32, _Route> = BTreeMap::new();
-        sqlx::query!(
-            "
-                        SELECT de.id, ev.location, ev.step FROM
-                            driver dr, delivery de, event ev
-                            WHERE dr.name = $1
-                            AND   dr.veh_name = de.veh_name
-                            AND   de.id = ev.del_id
-                            ORDER BY de.id, ev.step
-                    ",
-            user
-        )
-        .fetch_all(&mut *connection)
-        .await?
-        .into_iter()
-        .for_each(|event| {
-            routes
-                .entry(event.id)
-                .or_insert(_Route(event.id, vec![]))
-                .1
-                .push(Event {
-                    location: event.location,
-                });
-        });
-        Ok(routes)
+        retrieve_routes_for_user(conn, user_name)
+            .await
+            .map_err(|err| err.into())
     }
 
     async fn select_route(&self, token_id: &Uuid, route_id: i32) -> Result<bool, Error> {
@@ -348,7 +315,7 @@ mod route_manager_tests {
             .await
             .unwrap();
         for (retrieved, inserted) in retrieved_routes.zip(inserted_routes) {
-            assert_eq!(retrieved.1, inserted.events)
+            assert_eq!(retrieved.events, inserted.events)
         }
         tx.rollback().await.unwrap();
     }

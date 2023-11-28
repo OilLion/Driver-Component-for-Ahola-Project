@@ -21,11 +21,11 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::error::Error;
-use crate::types::routes::{Event, Route};
+use crate::types::routes::{DriverRoute, Event, Route};
 
 use self::grpc_route_manager::SelectRouteResponse;
 
-use super::{RouteManager, _Route};
+use super::RouteManager;
 
 impl From<RouteMessage> for Route {
     fn from(route_message: RouteMessage) -> Self {
@@ -176,17 +176,17 @@ impl RouteManagerService for RouteManager {
     }
 }
 
-impl From<_Route> for RouteReply {
-    fn from(route: _Route) -> Self {
+impl From<DriverRoute> for RouteReply {
+    fn from(route: DriverRoute) -> Self {
         Self {
             events: route
-                .1
+                .events
                 .into_iter()
                 .map(|event| EventMessage {
                     location: event.location,
                 })
                 .collect(),
-            route_id: route.0,
+            route_id: route.id,
         }
     }
 }

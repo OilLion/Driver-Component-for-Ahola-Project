@@ -17,6 +17,20 @@ impl Route {
     }
 }
 
+pub struct DriverRoute {
+    pub id: i32,
+    pub events: Vec<Event>,
+}
+
+impl DriverRoute {
+    pub fn new(id: i32) -> Self {
+        Self {
+            id,
+            events: Vec::new(),
+        }
+    }
+}
+
 impl Event {
     pub fn new(location: impl Into<String>) -> Self {
         Self {
