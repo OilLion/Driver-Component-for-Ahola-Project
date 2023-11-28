@@ -7,6 +7,7 @@ use crate::types::{LoginToken, LoginTokens};
 use std::time::{Duration, Instant};
 
 use crate::constants::database_error_codes::*;
+use crate::sql;
 
 #[derive(Debug)]
 pub struct UserManager {
@@ -33,15 +34,8 @@ impl UserManager {
         password: &str,
         vehicle: &str,
     ) -> Result<RegisterResult, sqlx::Error> {
-        let result = sqlx::query!(
-            "INSERT INTO DRIVER (name, password, Veh_name)
-                VALUES ($1, $2, $3)",
-            username,
-            password,
-            vehicle,
-        )
-        .execute(&self.database)
-        .await;
+        let mut conn = self.database.acquire().await?;
+        let result = sql::insert_driver(conn.as_mut(), username, password, vehicle).await;
         match result {
             Ok(_) => Ok(RegisterResult::Success),
             Err(sqlx::Error::Database(error))
@@ -58,34 +52,25 @@ impl UserManager {
         &self,
         username: &str,
         password: &str,
-    ) -> Result<LoginResult, sqlx::Error> {
-        // let mut transaction = self.database.begin().await?;
-        let query = sqlx::query!(
-            "SELECT password FROM DRIVER
-                WHERE name = $1",
-            username
-        );
-        let result = query.fetch_one(&self.database).await;
-        match result {
-            Ok(record) => Ok(if record.password == password {
-                let expiration = Instant::now() + self.user_timeout;
-                let token = LoginToken::new(username.into(), expiration);
-                self.login_tokens.insert_token(token.id, token.clone());
-                LoginResult::Success(token)
-            } else {
-                LoginResult::InvalidPassword
-            }),
-            Err(sqlx::Error::RowNotFound) => Ok(LoginResult::DoesNotExist),
-            Err(e) => Err(e),
+    ) -> Result<LoginToken, crate::error::Error> {
+        let mut conn = self.database.acquire().await?;
+        let password_matches = sql::check_password(conn.as_mut(), username, password)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::RowNotFound => {
+                    crate::error::Error::DriverNotRegistered(username.into())
+                }
+                err => err.into(),
+            })?;
+        if password_matches {
+            let expiration = Instant::now() + self.user_timeout;
+            let token = LoginToken::new(username.into(), expiration);
+            self.login_tokens.insert_token(token.id, token.clone());
+            Ok(token)
+        } else {
+            Err(crate::error::Error::InvalidPassword)
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum LoginResult {
-    Success(LoginToken),
-    InvalidPassword,
-    DoesNotExist,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -97,7 +82,7 @@ enum RegisterResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::DATABASE_URL;
+    use crate::{constants::DATABASE_URL, error::Error};
     use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
     use uuid::Uuid;
 
@@ -132,18 +117,14 @@ mod tests {
         assert_eq!(driver.password, password);
         assert_eq!(driver.veh_name, "Truck");
         // Try logging in as the driver
-        let login_token = user_manager
+        let token = user_manager
             .login_driver(username.as_str(), password.as_str())
             .await
             .unwrap();
         // Login should be successful and the returned token should
         // match the one in the `LoginTokens` map
-        if let LoginResult::Success(token) = login_token {
-            assert_eq!(token.user, username);
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
+        assert_eq!(token.user, username);
+        assert!(tokens.contains_token(&token.id));
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
             .await
@@ -183,11 +164,10 @@ mod tests {
             .await
             .is_ok());
 
-        let login_result = user_manager
+        let login_error = user_manager
             .login_driver(username.as_str(), "wrong password")
-            .await
-            .unwrap();
-        assert!(matches!(login_result, LoginResult::InvalidPassword));
+            .await;
+        assert!(login_error.is_err_and(|err| matches!(err, Error::InvalidPassword)));
         // no login token should be in the LoginTokens map
         assert!(tokens.is_empty());
 
@@ -202,12 +182,11 @@ mod tests {
         let (_, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let login_result = user_manager
+        let login_error = user_manager
             .login_driver(username.as_str(), password.as_str())
-            .await
-            .unwrap();
+            .await;
+        assert!(login_error.is_err_and(|err| matches!(err, Error::DriverNotRegistered(username))));
         assert!(tokens.is_empty());
-        assert!(matches!(login_result, LoginResult::DoesNotExist))
     }
 
     #[tokio::test]
@@ -230,16 +209,8 @@ mod tests {
             .unwrap();
         // login tokens should not be equal
         assert_ne!(login_token_a, login_token_b);
-        if let LoginResult::Success(token) = login_token_a {
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
-        if let LoginResult::Success(token) = login_token_b {
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
+        assert!(tokens.contains_token(&login_token_a.id));
+        assert!(tokens.contains_token(&login_token_b.id));
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
             .await

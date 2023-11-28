@@ -89,7 +89,9 @@ impl From<Error> for SelectRouteResponse {
                 | Error::RouteUpdateSmallerThanCurrent(..)
                 | Error::RouteUpdateExceedsEventCount(_, _)
                 | Error::MalformedTokenId
-                | Error::InvalidRoute => RMResult::UnknownError.into(),
+                | Error::InvalidRoute
+                | Error::DriverNotRegistered(_)
+                | Error::InvalidPassword => RMResult::UnknownError.into(),
             },
         }
     }

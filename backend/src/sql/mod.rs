@@ -1,5 +1,5 @@
 use crate::types::routes::{DriverRoute, Event, Route};
-use sqlx::PgConnection;
+use sqlx::{postgres::PgQueryResult, PgConnection};
 
 type Connection<'a> = &'a mut PgConnection;
 
@@ -138,4 +138,38 @@ pub async fn retrieve_routes_for_user(
             });
     });
     Ok(routes.into_values())
+}
+
+pub async fn insert_driver(
+    conn: Connection<'_>,
+    username: &str,
+    password: &str,
+    vehicle: &str,
+) -> Result<PgQueryResult> {
+    sqlx::query!(
+        "
+        INSERT INTO DRIVER (name, password, Veh_name)
+        VALUES ($1, $2, $3)
+        ",
+        username,
+        password,
+        vehicle,
+    )
+    .execute(conn.as_mut())
+    .await
+}
+
+pub async fn check_password(conn: Connection<'_>, username: &str, password: &str) -> Result<bool> {
+    sqlx::query!(
+        r#"
+            SELECT password = $2 as "valid!"
+            FROM DRIVER
+            WHERE name = $1
+        "#,
+        username,
+        password,
+    )
+    .fetch_one(conn.as_mut())
+    .await
+    .map(|row| row.valid)
 }

@@ -4,11 +4,13 @@ pub mod grpc_user_manager {
     tonic::include_proto!("user_manager");
 }
 use self::grpc_user_manager::{Login, LoginResponse, LoginResult as GrpcLoginResult};
-use super::{LoginResult, RegisterResult, UserManager};
+use super::{RegisterResult, UserManager};
 use grpc_user_manager::user_manager_server::UserManager as UserManagerService;
 use grpc_user_manager::{Registration, RegistrationResponse, RegistrationResult};
 
 pub use grpc_user_manager::user_manager_server::UserManagerServer;
+
+use crate::error::Error;
 
 #[tonic::async_trait]
 impl UserManagerService for UserManager {
@@ -64,40 +66,36 @@ impl UserManagerService for UserManager {
             .login_driver(username.as_str(), password.as_str())
             .await
         {
-            Ok(login_result) => Ok(Response::new(match login_result {
-                LoginResult::Success(token) => {
-                    event!(Level::INFO, user_logged_in = %username);
-                    LoginResponse {
-                        result: GrpcLoginResult::LoginSuccess as i32,
-                        uuid: (*token.id.as_bytes()).into(),
-                        duration: self.user_timeout.as_secs(),
-                    }
+            Ok(token) => Ok(Response::new({
+                event!(Level::INFO, user_logged_in = %username);
+                LoginResponse {
+                    result: GrpcLoginResult::LoginSuccess as i32,
+                    uuid: (*token.id.as_bytes()).into(),
+                    duration: self.user_timeout.as_secs(),
                 }
-                LoginResult::InvalidPassword => {
-                    event!(Level::DEBUG, %username, "user attempted to login with wrong password");
-                    LoginResponse {
-                        result: GrpcLoginResult::InvalidPassword as i32,
-                        uuid: vec![],
-                        duration: 0,
-                    }
-                }
-                LoginResult::DoesNotExist => {
+            })),
+            Err(e) => match e {
+                Error::DriverNotRegistered(_) => {
                     event!(Level::DEBUG, %username, "loginattempt with nonexistent username");
-                    LoginResponse {
+                    Ok(Response::new(LoginResponse {
                         result: GrpcLoginResult::DoesNotExist as i32,
                         uuid: vec![],
                         duration: 0,
-                    }
+                    }))
                 }
-            })),
-            Err(error) => {
-                event!(Level::ERROR, %username, %error, "loginattempt lead to unhandled error");
-                Ok(Response::new(LoginResponse {
-                    result: GrpcLoginResult::LoginUnknownError as i32,
-                    uuid: vec![],
-                    duration: 0,
-                }))
-            }
+                Error::InvalidPassword => {
+                    event!(Level::DEBUG, %username, "user attempted to login with wrong password");
+                    Ok(Response::new(LoginResponse {
+                        result: GrpcLoginResult::InvalidPassword as i32,
+                        uuid: vec![],
+                        duration: 0,
+                    }))
+                }
+                error => {
+                    event!(Level::ERROR, %username, %error, "loginattempt lead to unhandled error");
+                    Err(tonic::Status::new(tonic::Code::Unknown, "unknown error"))
+                }
+            },
         }
     }
 }
