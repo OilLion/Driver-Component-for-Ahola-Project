@@ -1,10 +1,8 @@
-pub mod grpc_implementation;
-
 use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
-    error::{Error, violates_fk_constraint},
+    error::{violates_fk_constraint, Error},
     sql::{
         assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
     },
@@ -14,6 +12,11 @@ use crate::{
     },
 };
 
+pub mod grpc_implementation;
+
+/// The `RouteManager` is responsible for handling routes.
+/// It can add new routes to the database and retrieve routes based on a drivers specific vehicle,
+/// as well as assign a driver to a route.
 #[derive(Debug)]
 pub struct RouteManager {
     database: Pool<Postgres>,
@@ -21,22 +24,28 @@ pub struct RouteManager {
 }
 
 impl RouteManager {
+    /// Creates a new `RouteManager` with the given database connection pool and `LoginTokens` map.
     pub fn new(database: Pool<Postgres>, login_tokens: LoginTokens) -> Self {
         Self {
             database,
             login_tokens,
         }
     }
+    /// Adds the `route` to the database and returns the id of the route, as assigned by the database.
+    /// Delegates to [`add_route_helper`](Self::add_route_helper) for the actual insertion.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::InvalidRoute`] if the given `route` has less than 2 events.
+    /// - [`Error::UnknownVehicle`] if the given `route` has a vehicle that is
+    ///     not registered in the database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn add_route(&self, route: Route) -> Result<i32, Error> {
         let mut conn = self.database.acquire().await?;
         let route_id = Self::add_route_helper(&mut conn, route).await?;
         Ok(route_id)
     }
 
-    pub(super) async fn add_route_helper(
-        conn: &mut PgConnection,
-        route: Route,
-    ) -> Result<i32, Error> {
+    async fn add_route_helper(conn: &mut PgConnection, route: Route) -> Result<i32, Error> {
         if route.events.len() < 2 {
             return Err(Error::InvalidRoute);
         }
@@ -49,7 +58,14 @@ impl RouteManager {
         })
     }
 
-    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item=DriverRoute>, Error> {
+    /// Retrieves all routes for the driver associated with the given `token_id`.
+    /// Only routes with the same vehicle as the driver are returned.
+    /// Delegate to [`get_route_helper`](Self::get_route_helper) for the actual retrieval.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::UnauthenticatedUser`] if the given `token_id` is not associated with a driver.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = DriverRoute>, Error> {
         let mut conn = self.database.acquire().await?;
         Self::get_route_helper(conn.as_mut(), &self.login_tokens, &token_id).await
     }
@@ -58,7 +74,7 @@ impl RouteManager {
         conn: &mut PgConnection,
         login_tokens: &LoginTokens,
         token_id: &Uuid,
-    ) -> Result<impl Iterator<Item=DriverRoute>, Error> {
+    ) -> Result<impl Iterator<Item = DriverRoute>, Error> {
         let login_token = login_tokens
             .get_token(&token_id)
             .ok_or(Error::UnauthenticatedUser)?;
@@ -68,6 +84,18 @@ impl RouteManager {
             .map_err(|err| err.into())
     }
 
+    /// Assigns the driver associated with the given `token_id` to the route with the given `route_id`.
+    /// Delegates to [`select_route_helper`](Self::select_route_helper) for the actual assignment.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::UnauthenticatedUser`] if the given `token_id` is not associated with a driver.
+    /// - [`Error::UnknownRoute`] if the given `route_id` is not found in the database.
+    /// - [`Error::RouteAlreadyAssigned`] if the given `route_id` is already assigned to a driver.
+    /// - [`Error::DriverAlreadyAssigned`] if the driver associated with the given `token_id` is
+    ///    already assigned to a route.
+    /// - [`Error::IncompatibelVehicle`] if the vehicle of the driver associated with the given
+    ///     `token_id` does not match the vehicle of the route with the given `route_id`.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn select_route(&self, token_id: &Uuid, route_id: i32) -> Result<bool, Error> {
         let token = self
             .login_tokens
@@ -133,9 +161,7 @@ mod route_manager_tests {
             .await
             .unwrap();
         let route = get_route(tx.as_mut(), route_id).await.unwrap();
-        let user = get_driver_info(tx.as_mut(), &username)
-            .await
-            .unwrap();
+        let user = get_driver_info(tx.as_mut(), &username).await.unwrap();
         assert!(user.route.is_some_and(|id| id == route_id));
         assert!(route.driver.is_some_and(|name| name == username));
         tx.rollback().await.unwrap();
@@ -160,9 +186,7 @@ mod route_manager_tests {
             })
         );
         let route = get_route(tx.as_mut(), route_id).await.unwrap();
-        let user = get_driver_info(tx.as_mut(), &username)
-            .await
-            .unwrap();
+        let user = get_driver_info(tx.as_mut(), &username).await.unwrap();
         assert!(!user.is_assigned());
         assert!(!route.is_assigned());
     }
@@ -209,7 +233,7 @@ mod route_manager_tests {
             }],
             vehicle.into(),
         )
-            .await;
+        .await;
         assert!(route_result.is_err_and(|err| matches!(err, Error::InvalidRoute)));
     }
 
@@ -236,9 +260,9 @@ mod route_manager_tests {
                         where id = $1",
             route_id
         )
-            .fetch_all(&pool)
-            .await
-            .unwrap();
+        .fetch_all(&pool)
+        .await
+        .unwrap();
         for ((db_event, index), control_event) in route_events.iter().zip(0i32..).zip(events) {
             assert_eq!(db_event.veh_name, vehicle);
             assert_eq!(db_event.location, control_event.location);

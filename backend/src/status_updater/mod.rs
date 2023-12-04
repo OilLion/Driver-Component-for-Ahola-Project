@@ -276,9 +276,7 @@ mod tests {
         let mut tx = pool.begin().await.unwrap();
         let (user, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
         let route = test_utils::generate_route(vehicle, 10);
-        let route_id = RouteManager::add_route_helper(tx.as_mut(), route)
-            .await
-            .unwrap();
+        let route_id = crate::sql::insert_route(tx.as_mut(), &route).await.unwrap();
         RouteManager::select_route_helper(tx.as_mut(), &user, route_id)
             .await
             .unwrap();
@@ -322,9 +320,7 @@ mod tests {
         let mut tx = pool.begin().await.unwrap();
         let (_, test_vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
         let route = test_utils::generate_route(test_vehicle, 10);
-        let route_id = RouteManager::add_route_helper(tx.as_mut(), route)
-            .await
-            .unwrap();
+        let route_id = crate::sql::insert_route(tx.as_mut(), &route).await.unwrap();
         let message = Message { route_id, step: 3 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
