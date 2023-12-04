@@ -91,7 +91,8 @@ impl From<Error> for SelectRouteResponse {
                 | Error::MalformedTokenId
                 | Error::InvalidRoute
                 | Error::DriverNotRegistered(_)
-                | Error::InvalidPassword => RMResult::UnknownError.into(),
+                | Error::InvalidPassword
+                | Error::DuplicateUsername(_) => RMResult::UnknownError.into(),
             },
         }
     }

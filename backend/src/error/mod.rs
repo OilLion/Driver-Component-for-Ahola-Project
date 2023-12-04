@@ -33,6 +33,8 @@ pub enum Error {
     DriverNotRegistered(String),
     #[error("invalid passowrd")]
     InvalidPassword,
+    #[error("driver with name {0} already registered")]
+    DuplicateUsername(String),
 }
 
 impl From<Error> for Status {
@@ -48,7 +50,7 @@ impl From<Error> for Status {
             Error::UnknownVehicle(_) | Error::UnknownRoute(_) | Error::DriverNotRegistered(_) => {
                 Code::NotFound
             }
-            Error::RouteAlreadyAssigned(_) | Error::DriverAlreadyAssigned(_) => {
+            Error::RouteAlreadyAssigned(_) | Error::DriverAlreadyAssigned(_) | Error::DuplicateUsername(_) => {
                 Code::ResourceExhausted
             }
             Error::UnauthenticatedUser => Code::Unauthenticated,

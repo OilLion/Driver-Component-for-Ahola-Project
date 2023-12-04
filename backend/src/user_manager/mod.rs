@@ -1,13 +1,16 @@
+use crate::{
+    error::{violates_unique_constraint, Error},
+    sql,
+    types::{LoginToken, LoginTokens},
+};
+
+use crate::error::violates_fk_constraint;
 use sqlx::{Pool, Postgres};
+use std::time::{Duration, Instant};
 
 pub mod grpc_implementation;
 
-use crate::error::{violates_unique_constraint};
-use crate::types::{LoginToken, LoginTokens};
-use crate::sql;
-
-use std::time::{Duration, Instant};
-
+/// The `UserManager` is responsible for handling the registration and login of drivers.
 #[derive(Debug)]
 pub struct UserManager {
     database: Pool<Postgres>,
@@ -16,6 +19,8 @@ pub struct UserManager {
 }
 
 impl UserManager {
+    /// Creates a new `UserManager` with the given database connection pool and `LoginTokens` map.
+    /// The `user_timeout` specifies how long a user can be logged in before the login token expires.
     pub fn new(
         database: Pool<Postgres>,
         login_tokens: LoginTokens,
@@ -27,24 +32,30 @@ impl UserManager {
             user_timeout,
         }
     }
-    async fn add_driver(
-        &self,
-        username: &str,
-        password: &str,
-        vehicle: &str,
-    ) -> Result<RegisterResult, sqlx::Error> {
+    /// Registers a new driver with the given `username`, `password` and `vehicle`, by inserting
+    /// a new driver into the database.
+    /// The `username` must be unique and the `vehicle` must be registered in the database,
+    /// otherwise an error is returned.
+    /// # Errors
+    /// Returns [`Error::DuplicateUsername`] if the given `username` is already registered.
+    /// Returns [`Error::UnknownVehicle`] if the given `vehicle` is not registered in the database.
+    /// Returns [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn add_driver(&self, username: &str, password: &str, vehicle: &str) -> Result<(), Error> {
         let mut conn = self.database.acquire().await?;
         match sql::insert_driver(conn.as_mut(), username, password, vehicle).await {
             Err(error) => {
                 if violates_unique_constraint(&error) {
-                    Ok(RegisterResult::DuplicateUsername)
+                    Err(Error::DuplicateUsername(username.into()))
+                } else if violates_fk_constraint(&error, Some("fk_driver_associati_vehicle")) {
+                    Err(Error::UnknownVehicle(vehicle.into()))
                 } else {
-                    Err(error)
+                    Err(error.into())
                 }
             }
-            Ok(_) => Ok(RegisterResult::Success),
+            Ok(_) => Ok(()),
         }
     }
+    /// Logs in a driver with the given `username` and `password`.
     async fn login_driver(
         &self,
         username: &str,
@@ -54,9 +65,7 @@ impl UserManager {
         let password_matches = sql::check_password(conn.as_mut(), username, password)
             .await
             .map_err(|error| match error {
-                sqlx::Error::RowNotFound => {
-                    crate::error::Error::DriverNotRegistered(username.into())
-                }
+                sqlx::Error::RowNotFound => Error::DriverNotRegistered(username.into()),
                 err => err.into(),
             })?;
         if password_matches {
@@ -65,15 +74,9 @@ impl UserManager {
             self.login_tokens.insert_token(token.id, token.clone());
             Ok(token)
         } else {
-            Err(crate::error::Error::InvalidPassword)
+            Err(Error::InvalidPassword)
         }
     }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum RegisterResult {
-    Success,
-    DuplicateUsername,
 }
 
 #[cfg(test)]
@@ -138,11 +141,11 @@ mod tests {
             .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .is_ok());
-        let result = user_manager
+        let error = user_manager
             .add_driver(&username.as_str(), password.as_str(), vehicle)
             .await
-            .unwrap();
-        assert!(matches!(result, RegisterResult::DuplicateUsername));
+            .unwrap_err();
+        assert!(matches!(error, Error::DuplicateUsername(err_name) if err_name == username));
 
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
@@ -212,6 +215,19 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn insert_for_nonexistet_vehicle() {
+        let (_, user_manager, _) = setup().await;
+        let username = Uuid::new_v4().to_string();
+        let password = Uuid::new_v4().to_string();
+        let vehicle = Uuid::new_v4().to_string();
+        let error = user_manager
+            .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, Error::UnknownVehicle(err_vehicle) if err_vehicle == vehicle));
     }
 
     /// Test helper function to setup the databse connect and needed objects

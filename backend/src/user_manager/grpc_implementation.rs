@@ -1,10 +1,12 @@
 use tonic::Response;
 use tracing::{event, instrument, Level};
+
 pub mod grpc_user_manager {
     tonic::include_proto!("user_manager");
 }
+
 use self::grpc_user_manager::{Login, LoginResponse, LoginResult as GrpcLoginResult};
-use super::{RegisterResult, UserManager};
+use super::UserManager;
 use grpc_user_manager::user_manager_server::UserManager as UserManagerService;
 use grpc_user_manager::{Registration, RegistrationResponse, RegistrationResult};
 
@@ -28,7 +30,7 @@ impl UserManagerService for UserManager {
             .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
             .await
         {
-            Ok(RegisterResult::Success) => {
+            Ok(_) => {
                 event!(
                     Level::INFO,
                     message = "registered new driver",
@@ -38,7 +40,7 @@ impl UserManagerService for UserManager {
                     result: RegistrationResult::RegistrationSuccess as i32,
                 }))
             }
-            Ok(RegisterResult::DuplicateUsername) => {
+            Err(Error::DuplicateUsername(username)) => {
                 event!(
                     Level::DEBUG,
                     message = "registration attempt with existing username",
@@ -48,8 +50,14 @@ impl UserManagerService for UserManager {
                     result: RegistrationResult::UserAlreadyExists as i32,
                 }))
             }
-            Err(error) => {
+            Err(Error::UnhandledDatabaseError(error)) => {
                 event!(Level::ERROR, %error, "unhandled database error");
+                Ok(Response::new(RegistrationResponse {
+                    result: RegistrationResult::RegistrationUnknownError as i32,
+                }))
+            }
+            Err(error) => {
+                event!(Level::ERROR, %error, "unhandled error");
                 Ok(Response::new(RegistrationResponse {
                     result: RegistrationResult::RegistrationUnknownError as i32,
                 }))
