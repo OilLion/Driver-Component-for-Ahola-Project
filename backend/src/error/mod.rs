@@ -1,7 +1,9 @@
+use crate::constants::database_error_codes::{
+    DATABASE_FOREIGN_KEY_VIOLATION, DATABASE_UNIQUE_CONSTRAINT_VIOLATED,
+};
 use sqlx::error::DatabaseError;
 use thiserror::Error;
 use tonic::{Code, Status};
-use crate::constants::database_error_codes::{DATABASE_FOREIGN_KEY_VIOLATION, DATABASE_UNIQUE_CONSTRAINT_VIOLATED};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -50,9 +52,9 @@ impl From<Error> for Status {
             Error::UnknownVehicle(_) | Error::UnknownRoute(_) | Error::DriverNotRegistered(_) => {
                 Code::NotFound
             }
-            Error::RouteAlreadyAssigned(_) | Error::DriverAlreadyAssigned(_) | Error::DuplicateUsername(_) => {
-                Code::ResourceExhausted
-            }
+            Error::RouteAlreadyAssigned(_)
+            | Error::DriverAlreadyAssigned(_)
+            | Error::DuplicateUsername(_) => Code::ResourceExhausted,
             Error::UnauthenticatedUser => Code::Unauthenticated,
             Error::UnhandledDatabaseError(_) => Code::Unknown,
         };

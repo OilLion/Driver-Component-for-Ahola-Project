@@ -37,9 +37,10 @@ impl UserManager {
     /// The `username` must be unique and the `vehicle` must be registered in the database,
     /// otherwise an error is returned.
     /// # Errors
-    /// Returns [`Error::DuplicateUsername`] if the given `username` is already registered.
-    /// Returns [`Error::UnknownVehicle`] if the given `vehicle` is not registered in the database.
-    /// Returns [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    /// Returns:
+    /// - [`Error::DuplicateUsername`] if the given `username` is already registered.
+    /// - [`Error::UnknownVehicle`] if the given `vehicle` is not registered in the database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn add_driver(&self, username: &str, password: &str, vehicle: &str) -> Result<(), Error> {
         let mut conn = self.database.acquire().await?;
         match sql::insert_driver(conn.as_mut(), username, password, vehicle).await {
@@ -55,12 +56,20 @@ impl UserManager {
             Ok(_) => Ok(()),
         }
     }
-    /// Logs in a driver with the given `username` and `password`.
-    async fn login_driver(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<LoginToken, crate::error::Error> {
+    /// Attempts to log in a driver with the given `username` and `password`.
+    /// Checks if the password in the database matches the one supplied.
+    /// If the passwords match, a new [`LoginToken`] is created and inserted
+    /// into the [`login_tokens`](struct.UserManager.html#structfield.login_tokens) map.
+    /// A copy of the token is returned.
+    ///
+    /// # Errors
+    /// Returns:
+    /// - [`Error::DriverNotRegistered`] if the given `username` is not found in the
+    /// database.
+    /// - [`Error::InvalidPassword`] if the given `password` does not match the one in the
+    /// database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn login_driver(&self, username: &str, password: &str) -> Result<LoginToken, Error> {
         let mut conn = self.database.acquire().await?;
         let password_matches = sql::check_password(conn.as_mut(), username, password)
             .await
