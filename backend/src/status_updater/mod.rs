@@ -277,7 +277,7 @@ mod tests {
         let (user, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
         let route = test_utils::generate_route(vehicle, 10);
         let route_id = crate::sql::insert_route(tx.as_mut(), &route).await.unwrap();
-        RouteManager::select_route_helper(tx.as_mut(), &user, route_id)
+        crate::sql::assign_driver_to_route(tx.as_mut(), &user, route_id)
             .await
             .unwrap();
         // updating status forward works

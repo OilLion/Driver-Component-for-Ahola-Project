@@ -107,7 +107,7 @@ impl RouteManager {
         Ok(true)
     }
 
-    pub(super) async fn select_route_helper(
+    async fn select_route_helper(
         conn: &'_ mut PgConnection,
         name: &str,
         route_id: i32,
