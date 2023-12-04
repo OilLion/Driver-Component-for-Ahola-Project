@@ -1,5 +1,8 @@
+use std::arch::aarch64::vhadd_u8;
+use sqlx::error::DatabaseError;
 use thiserror::Error;
 use tonic::{Code, Status};
+use crate::constants::database_error_codes::{DATABASE_FOREIGN_KEY_VIOLATION, DATABASE_UNIQUE_CONSTRAINT_VIOLATED};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -56,13 +59,35 @@ impl From<Error> for Status {
     }
 }
 
-/// Checks if the sqlx error is a database error and matches the code and constaint
-pub fn check_error(error: &sqlx::Error, code: &str, constraint: &str) -> bool {
+/// checks if a DatabaseError has a code which matches the supplied code.
+fn error_code(error: &Box<dyn DatabaseError>, code: &str) -> bool {
+    error.code().is_some_and(|err_code| err_code == code)
+}
+
+/// checks if a DatabaseError has a constraint which matches the supplied constraint.
+fn error_constraint(error: &Box<dyn DatabaseError>, constraint: &str) -> bool {
+    error
+        .constraint()
+        .is_some_and(|err_constraint| err_constraint == constraint)
+}
+
+/// checks if a `sqlx::Error` is a `Error::Database` and if the contained
+/// `DatabaseError` is notifying a unique constraint violation.
+pub fn violates_unique_constraint(error: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(error) = error {
-        error.code().is_some_and(|error_code| error_code == code)
-            && error
-                .constraint()
-                .is_some_and(|error_constraint| error_constraint == constraint)
+        error_code(error, DATABASE_UNIQUE_CONSTRAINT_VIOLATED)
+    } else {
+        false
+    }
+}
+
+/// checks if a `sqlx::Error` is a `Error::Database` and if the contained
+/// `DatabaseError` is notifying a foreign key constraint violation.
+/// Optionally checks the constraint name, if one is supplied in `details`.
+pub fn violates_fk_constraint(error: &sqlx::Error, details: Option<&str>) -> bool {
+    if let sqlx::Error::Database(error) = error {
+        error_code(error, DATABASE_FOREIGN_KEY_VIOLATION)
+            && details.map_or(true, |details| error_constraint(error, details))
     } else {
         false
     }

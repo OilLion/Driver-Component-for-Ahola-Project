@@ -14,6 +14,7 @@ use crate::{
         LoginTokens,
     },
 };
+use crate::error::violates_fk_constraint;
 
 #[derive(Debug)]
 pub struct RouteManager {
@@ -39,20 +40,15 @@ impl RouteManager {
         route: Route,
     ) -> Result<i32, Error> {
         if route.events.len() < 2 {
-            Err(Error::InvalidRoute)
-        } else {
-            insert_route(conn.as_mut(), &route).await.map_err(|error| {
-                if check_error(
-                    &error,
-                    DATABASE_FOREIGN_KEY_VIOLATION,
-                    "fk_delivery_associati_vehicle",
-                ) {
-                    Error::UnknownVehicle(route.vehicle.clone())
-                } else {
-                    error.into()
-                }
-            })
+            return Err(Error::InvalidRoute);
         }
+        insert_route(conn.as_mut(), &route).await.map_err(|error| {
+            if violates_fk_constraint(&error, Some("fk_delivery_associati_vehicle")) {
+                Error::UnknownVehicle(route.vehicle.clone())
+            } else {
+                error.into()
+            }
+        })
     }
 
     async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = DriverRoute>, Error> {

@@ -1,7 +1,9 @@
+use sqlx::error::DatabaseError;
 use sqlx::{Pool, Postgres};
 
 pub mod grpc_implementation;
 
+use crate::error::{violates_unique_constraint};
 use crate::types::{LoginToken, LoginTokens};
 
 use std::time::{Duration, Instant};
@@ -35,17 +37,15 @@ impl UserManager {
         vehicle: &str,
     ) -> Result<RegisterResult, sqlx::Error> {
         let mut conn = self.database.acquire().await?;
-        let result = sql::insert_driver(conn.as_mut(), username, password, vehicle).await;
-        match result {
-            Ok(_) => Ok(RegisterResult::Success),
-            Err(sqlx::Error::Database(error))
-                if error
-                    .code()
-                    .is_some_and(|code| code == DATABASE_UNIQUE_CONSTRAINT_VIOLATED) =>
-            {
-                Ok(RegisterResult::DuplicateUsername)
+        match sql::insert_driver(conn.as_mut(), username, password, vehicle).await {
+            Err(error) => {
+                if violates_unique_constraint(&error) {
+                    Ok(RegisterResult::DuplicateUsername)
+                } else {
+                    Err(error)
+                }
             }
-            Err(err) => Err(err),
+            Ok(_) => Ok(RegisterResult::Success),
         }
     }
     async fn login_driver(
