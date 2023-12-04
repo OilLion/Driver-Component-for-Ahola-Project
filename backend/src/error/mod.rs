@@ -1,4 +1,3 @@
-use std::arch::aarch64::vhadd_u8;
 use sqlx::error::DatabaseError;
 use thiserror::Error;
 use tonic::{Code, Status};

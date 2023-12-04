@@ -4,8 +4,7 @@ use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
-    constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
-    error::{check_error, Error},
+    error::{Error, violates_fk_constraint},
     sql::{
         assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
     },
@@ -14,7 +13,6 @@ use crate::{
         LoginTokens,
     },
 };
-use crate::error::violates_fk_constraint;
 
 #[derive(Debug)]
 pub struct RouteManager {
@@ -51,7 +49,7 @@ impl RouteManager {
         })
     }
 
-    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = DriverRoute>, Error> {
+    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item=DriverRoute>, Error> {
         let mut conn = self.database.acquire().await?;
         Self::get_route_helper(conn.as_mut(), &self.login_tokens, &token_id).await
     }
@@ -60,7 +58,7 @@ impl RouteManager {
         conn: &mut PgConnection,
         login_tokens: &LoginTokens,
         token_id: &Uuid,
-    ) -> Result<impl Iterator<Item = DriverRoute>, Error> {
+    ) -> Result<impl Iterator<Item=DriverRoute>, Error> {
         let login_token = login_tokens
             .get_token(&token_id)
             .ok_or(Error::UnauthenticatedUser)?;
@@ -134,8 +132,8 @@ mod route_manager_tests {
         RouteManager::select_route_helper(tx.as_mut(), &username, route_id)
             .await
             .unwrap();
-        let route = crate::sql::get_route(tx.as_mut(), route_id).await.unwrap();
-        let user = crate::sql::get_driver_info(tx.as_mut(), &username)
+        let route = get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = get_driver_info(tx.as_mut(), &username)
             .await
             .unwrap();
         assert!(user.route.is_some_and(|id| id == route_id));
@@ -161,8 +159,8 @@ mod route_manager_tests {
                 panic!("{}", err)
             })
         );
-        let route = crate::sql::get_route(tx.as_mut(), route_id).await.unwrap();
-        let user = crate::sql::get_driver_info(tx.as_mut(), &username)
+        let route = get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = get_driver_info(tx.as_mut(), &username)
             .await
             .unwrap();
         assert!(!user.is_assigned());
@@ -211,7 +209,7 @@ mod route_manager_tests {
             }],
             vehicle.into(),
         )
-        .await;
+            .await;
         assert!(route_result.is_err_and(|err| matches!(err, Error::InvalidRoute)));
     }
 
@@ -238,9 +236,9 @@ mod route_manager_tests {
                         where id = $1",
             route_id
         )
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+            .fetch_all(&pool)
+            .await
+            .unwrap();
         for ((db_event, index), control_event) in route_events.iter().zip(0i32..).zip(events) {
             assert_eq!(db_event.veh_name, vehicle);
             assert_eq!(db_event.location, control_event.location);

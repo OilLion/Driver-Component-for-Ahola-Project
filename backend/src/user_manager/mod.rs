@@ -1,15 +1,12 @@
-use sqlx::error::DatabaseError;
 use sqlx::{Pool, Postgres};
 
 pub mod grpc_implementation;
 
 use crate::error::{violates_unique_constraint};
 use crate::types::{LoginToken, LoginTokens};
+use crate::sql;
 
 use std::time::{Duration, Instant};
-
-use crate::constants::database_error_codes::*;
-use crate::sql;
 
 #[derive(Debug)]
 pub struct UserManager {
