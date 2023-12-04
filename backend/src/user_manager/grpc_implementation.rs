@@ -1,21 +1,35 @@
 use tonic::Response;
 use tracing::{event, instrument, Level};
 
+use super::UserManager;
+use crate::error::Error;
+
 pub mod grpc_user_manager {
     tonic::include_proto!("user_manager");
 }
-
-use self::grpc_user_manager::{Login, LoginResponse, LoginResult as GrpcLoginResult};
-use super::UserManager;
-use grpc_user_manager::user_manager_server::UserManager as UserManagerService;
-use grpc_user_manager::{Registration, RegistrationResponse, RegistrationResult};
-
-pub use grpc_user_manager::user_manager_server::UserManagerServer;
-
-use crate::error::Error;
+#[rustfmt::skip]
+pub use grpc_user_manager::user_manager_server::{
+    UserManagerServer,
+    UserManager as UserManagerService,
+};
+#[rustfmt::skip]
+use grpc_user_manager::{
+    Login, LoginResponse, LoginResult,
+    Registration, RegistrationResponse, RegistrationResult,
+};
 
 #[tonic::async_trait]
 impl UserManagerService for UserManager {
+    /// Registers a new driver in the database, by calling the [`add_driver`](UserManager::add_driver) method.
+    /// The `username`, `password` and `vehicle` are taken from the [`Registration`] message.
+    /// The `Result<(), Error>` is matched against and converted into the appropriate
+    /// [`RegistrationResult`] in a [`RegistrationResponse`].
+    ///
+    /// # Logging
+    /// Logs the result of the registration attempt with an appropriate log [`Level`].
+    /// Unknown errors are logged with [`Level::ERROR`] and all other errors are logged with
+    /// [`Level::DEBUG`].
+    /// A successful registration is logged with [`Level::INFO`].
     #[instrument]
     async fn register_user(
         &self,
@@ -64,6 +78,17 @@ impl UserManagerService for UserManager {
             }
         }
     }
+    /// Logs in a driver, by calling the [`login_driver`](UserManager::login_driver) method.
+    /// The `username` and `password` are taken from the [`Login`] message in the request.
+    /// The `Result<LoginToken, Error>` is matched against and converted into the appropriate
+    /// [`LoginResult`] in a [`LoginResponse`].
+    /// An `Ok(LoginToken)` is converted into a [`LoginResult::LoginSuccess`] message containing
+    /// the tokens id and the duration for which it is valid in seconds.
+    /// # Logging
+    /// Logs the result of the login attempt with an appropriate log [`Level`].
+    /// Unknown errors are logged with [`Level::ERROR`] and all other errors are logged with
+    /// [`Level::DEBUG`].
+    /// A successful login is logged with [`Level::INFO`].
     #[instrument]
     async fn login_user(
         &self,
@@ -77,7 +102,7 @@ impl UserManagerService for UserManager {
             Ok(token) => Ok(Response::new({
                 event!(Level::INFO, user_logged_in = %username);
                 LoginResponse {
-                    result: GrpcLoginResult::LoginSuccess as i32,
+                    result: LoginResult::LoginSuccess as i32,
                     uuid: (*token.id.as_bytes()).into(),
                     duration: self.user_timeout.as_secs(),
                 }
@@ -86,7 +111,7 @@ impl UserManagerService for UserManager {
                 Error::DriverNotRegistered(_) => {
                     event!(Level::DEBUG, %username, "loginattempt with nonexistent username");
                     Ok(Response::new(LoginResponse {
-                        result: GrpcLoginResult::DoesNotExist as i32,
+                        result: LoginResult::DoesNotExist as i32,
                         uuid: vec![],
                         duration: 0,
                     }))
@@ -94,14 +119,18 @@ impl UserManagerService for UserManager {
                 Error::InvalidPassword => {
                     event!(Level::DEBUG, %username, "user attempted to login with wrong password");
                     Ok(Response::new(LoginResponse {
-                        result: GrpcLoginResult::InvalidPassword as i32,
+                        result: LoginResult::InvalidPassword as i32,
                         uuid: vec![],
                         duration: 0,
                     }))
                 }
                 error => {
-                    event!(Level::ERROR, %username, %error, "loginattempt lead to unhandled error");
-                    Err(tonic::Status::new(tonic::Code::Unknown, "unknown error"))
+                    event!(Level::ERROR, %username, %error, "login attempt lead to unhandled error");
+                    Ok(Response::new(LoginResponse {
+                        result: LoginResult::LoginUnknownError as i32,
+                        uuid: vec![],
+                        duration: 0,
+                    }))
                 }
             },
         }
