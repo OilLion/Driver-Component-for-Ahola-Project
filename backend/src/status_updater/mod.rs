@@ -1,4 +1,4 @@
-use crate::sql::{mark_unsent, UpdateMessage};
+use crate::sql::UpdateMessage;
 use crate::types::LoginTokens;
 use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use tokio::task::{JoinError, JoinSet};
@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 pub mod grpc_implementation;
 
+use crate::sql;
 use grpc_implementation::PlanningUpdaterClient;
 
 use self::grpc_implementation::grpc_status_updater::PlanningUpdate;
@@ -145,42 +146,26 @@ impl StatusUpdater {
             .login_tokens
             .get_token(&token_id)
             .ok_or(crate::error::Error::UnauthenticatedUser)?;
+        let mut conn = self.database.acquire().await?;
         let (done, route_id) = update_status(&self.database, &driver.user, step).await?;
         if done {
-            remove_route(&self.database, route_id).await?;
+            sql::delete_route(conn.as_mut(), route_id).await?;
         }
         if let Err(error) = self.messages.try_send(UpdateMessage { route_id, step }) {
             let mut conn = self.database.acquire().await?;
             match error {
                 tokio::sync::mpsc::error::TrySendError::Full(message) => {
                     event!(Level::DEBUG, %error);
-                    mark_unsent(conn.as_mut(), message).await?;
+                    sql::mark_unsent(conn.as_mut(), message).await?;
                 }
                 tokio::sync::mpsc::error::TrySendError::Closed(message) => {
                     event!(Level::ERROR, %error);
-                    mark_unsent(conn.as_mut(), message).await?;
+                    sql::mark_unsent(conn.as_mut(), message).await?;
                 }
             }
         }
         Ok(done)
     }
-}
-
-async fn remove_route<'a>(
-    conn: impl Acquire<'a, Database = Postgres>,
-    route_id: i32,
-) -> Result<(), sqlx::Error> {
-    let mut conn = conn.acquire().await?;
-    sqlx::query!(
-        " 
-            DELETE FROM delivery
-            WHERE id=$1
-        ",
-        route_id
-    )
-    .execute(conn.as_mut())
-    .await?;
-    Ok(())
 }
 
 async fn update_status<'a>(

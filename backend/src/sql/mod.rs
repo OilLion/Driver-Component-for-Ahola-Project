@@ -32,6 +32,15 @@ pub async fn insert_route(conn: &mut PgConnection, route: &Route) -> Result<i32>
     Ok(id)
 }
 
+pub async fn delete_route(conn: &mut PgConnection, id: i32) -> Result<PgQueryResult> {
+    sqlx::query!("DELETE FROM EVENT WHERE Del_id = $1", id)
+        .execute(conn.as_mut())
+        .await?;
+    sqlx::query!("DELETE FROM DELIVERY WHERE id = $1", id)
+        .execute(conn.as_mut())
+        .await
+}
+
 pub struct DbDelivery {
     pub vehicle: String,
     pub driver: Option<String>,
