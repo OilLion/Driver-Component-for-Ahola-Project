@@ -211,3 +211,50 @@ where
     .fetch_all(conn.as_mut())
     .await
 }
+
+pub struct RouteStatus {
+    pub route_id: Option<i32>,
+    pub current_step: Option<i32>,
+    pub total_steps: Option<i64>,
+}
+
+pub async fn get_assigned_route_status(
+    conn: Connection<'_>,
+    driver: &str,
+    step: i32,
+) -> Result<RouteStatus> {
+    sqlx::query_as!(
+        RouteStatus,
+        r#"
+        SELECT delivery.id as "route_id?", delivery.current_step as current_step, COUNT(*) as total_steps
+        FROM driver LEFT JOIN (
+            SELECT id, current_step
+            FROM event
+            JOIN delivery ON event.del_id=delivery.id
+            ) as delivery on driver.id = delivery.id
+        WHERE driver.name = $1
+        GROUP BY delivery.id, delivery.current_step;
+        "#,
+        driver
+    )
+    .fetch_one(conn.as_mut())
+    .await
+}
+
+pub async fn update_status(
+    conn: Connection<'_>,
+    route_id: i32,
+    step: i32,
+) -> Result<PgQueryResult> {
+    sqlx::query!(
+        "
+        UPDATE delivery
+        SET current_step = $1
+        WHERE id = $2
+        ",
+        step,
+        route_id
+    )
+    .execute(conn.as_mut())
+    .await
+}

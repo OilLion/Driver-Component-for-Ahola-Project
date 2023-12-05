@@ -175,30 +175,16 @@ async fn update_status<'a>(
 ) -> Result<(bool, i32), crate::error::Error> {
     let mut conn = conn.acquire().await?;
     let (id, current_step, total_steps) = {
-        let delivery = sqlx::query!(
-            r#"
-                SELECT delivery.id as "id?", delivery.current_step, COUNT(*) as step_count
-                FROM driver LEFT JOIN (
-                    SELECT id, current_step
-                    FROM event
-                    JOIN delivery ON event.del_id=delivery.id
-                    ) as delivery on driver.id = delivery.id
-                WHERE driver.name = $1
-                GROUP BY delivery.id, delivery.current_step;
-            "#,
-            driver
-        )
-        .fetch_one(conn.as_mut())
-        .await?;
+        let update_meta = sql::get_assigned_route_status(conn.as_mut(), driver, step).await?;
         (
-            delivery
-                .id
+            update_meta
+                .route_id
                 .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))?,
-            delivery
+            update_meta
                 .current_step
                 .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))?,
-            delivery
-                .step_count
+            update_meta
+                .total_steps
                 .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))? as i32,
         )
     };
@@ -208,17 +194,7 @@ async fn update_status<'a>(
             total_steps,
         ))
     } else if current_step <= step {
-        sqlx::query!(
-            "
-                UPDATE delivery
-                SET current_step = $1
-                WHERE id = $2
-            ",
-            step,
-            id
-        )
-        .execute(conn.as_mut())
-        .await?;
+        sql::update_status(conn.as_mut(), id, step).await?;
         Ok((step == total_steps, id))
     } else {
         Err(crate::error::Error::RouteUpdateSmallerThanCurrent(
