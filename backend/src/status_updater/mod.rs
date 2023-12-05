@@ -1,5 +1,6 @@
+use crate::sql::{mark_unsent, UpdateMessage};
 use crate::types::LoginTokens;
-use sqlx::{Acquire, Pool, Postgres};
+use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use tokio::task::{JoinError, JoinSet};
 use tonic::Request;
 use tracing::{event, Level};
@@ -18,19 +19,23 @@ use self::grpc_implementation::grpc_status_updater::PlanningUpdate;
 pub struct StatusUpdater {
     login_tokens: LoginTokens,
     database: Pool<Postgres>,
-    messages: tokio::sync::mpsc::Sender<Message>,
+    messages: tokio::sync::mpsc::Sender<UpdateMessage>,
 }
 
+/// The 'PlanningClient' is responsible for sending status updates to planning.
 pub struct PlanningClient {
     database: Pool<Postgres>,
-    messages: tokio::sync::mpsc::Receiver<Message>,
+    messages: tokio::sync::mpsc::Receiver<UpdateMessage>,
     service_url: &'static str,
 }
 
 impl PlanningClient {
+    /// Creates a new `PlanningClient` with the given database connection pool,
+    /// receiver for messages from the `StatusUpdater` and the url of the
+    /// Planning grpc server.
     fn new(
         database: Pool<Postgres>,
-        messages: tokio::sync::mpsc::Receiver<Message>,
+        messages: tokio::sync::mpsc::Receiver<UpdateMessage>,
         service_url: String,
     ) -> Self {
         let service_url = service_url.leak();
@@ -40,30 +45,37 @@ impl PlanningClient {
             service_url,
         }
     }
+    /// Runs the `PlanningClient`
+    /// When it receives a message from the `StatusUpdater`, it spawns a task which
+    /// establishes a connection to the planning server and sends the message.
+    /// Also awaits the results of the tasks it has spawned. If a task failed to send the update
+    /// to planning, the update is buffered in the database.
     pub async fn run(mut self) -> Result<(), sqlx::Error> {
-        let mut updates: JoinSet<Result<(), Message>> = JoinSet::new();
+        let mut updates: JoinSet<Result<(), UpdateMessage>> = JoinSet::new();
         loop {
             tokio::select! {
                 Some(message) = self.messages.recv() => {
                     let task = update_planning(message, self.service_url);
                     updates.spawn(task);
-                }
+                },
                 Some(join_result) = updates.join_next(), if !updates.is_empty() => {
-                    Self::handle_join_result(&self.database, join_result).await
-                }
-                else => event!(Level::ERROR, "select failed")
+                    let mut conn = self.database.acquire().await?;
+                    Self::handle_join_result(conn.as_mut(), join_result).await
+                },
+                else => break,
             }
         }
+        Ok(())
     }
 
     async fn handle_join_result<'a>(
-        conn: impl Acquire<'a, Database = Postgres>,
-        join_result: Result<Result<(), Message>, JoinError>,
+        conn: &'_ mut PgConnection,
+        join_result: Result<Result<(), UpdateMessage>, JoinError>,
     ) {
         match join_result {
             Ok(Ok(_)) => (),
             Ok(Err(message)) => {
-                if let Err(error) = mark_unsent(conn, message).await {
+                if let Err(error) = crate::sql::mark_unsent(conn, message).await {
                     event!(Level::ERROR, %error)
                 }
             }
@@ -74,6 +86,8 @@ impl PlanningClient {
     }
 }
 
+/// creates a `StatusUpdater` and a `PlanningClient` with a channel connecting them
+/// of the given capacity.
 pub fn create_status_updater_and_client(
     database: Pool<Postgres>,
     login_tokens: LoginTokens,
@@ -87,7 +101,11 @@ pub fn create_status_updater_and_client(
     )
 }
 
-async fn update_planning(message: Message, service_url: &'static str) -> Result<(), Message> {
+/// Sends a message to the `PlanningClient` to update the status of the route.
+async fn update_planning(
+    message: UpdateMessage,
+    service_url: &'static str,
+) -> Result<(), UpdateMessage> {
     let handle_error = |err: &dyn std::error::Error| {
         event!(
             Level::DEBUG,
@@ -104,54 +122,15 @@ async fn update_planning(message: Message, service_url: &'static str) -> Result<
             step: message.step,
         }))
         .await
-        .map_err(|err| handle_error(&err))?;
-    Ok(())
-}
-
-async fn mark_unsent<'a>(
-    conn: impl Acquire<'a, Database = Postgres>,
-    message: Message,
-) -> Result<(), sqlx::Error> {
-    let mut conn = conn.acquire().await?;
-    let Message { route_id, step } = message;
-    sqlx::query!(
-        "SELECT insert_or_update_outstanding_delivery($1, $2)",
-        route_id,
-        step
-    )
-    .execute(conn.as_mut())
-    .await?;
-    Ok(())
-}
-
-async fn retrieve_unsent<'a, 'b>(
-    conn: impl Acquire<'a, Database = Postgres>,
-) -> Result<Vec<Message>, sqlx::Error>
-where
-    'b: 'a,
-{
-    let mut conn = conn.acquire().await?;
-    sqlx::query_as!(
-        Message,
-        "
-            SELECT id as route_id, current_step as step FROM outstandingupdates
-        "
-    )
-    .fetch_all(conn.as_mut())
-    .await
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-struct Message {
-    route_id: i32,
-    step: i32,
+        .map_err(|err| handle_error(&err))
+        .map(|_| ())
 }
 
 impl StatusUpdater {
     fn new(
         database: Pool<Postgres>,
         login_tokens: LoginTokens,
-        messages: tokio::sync::mpsc::Sender<Message>,
+        messages: tokio::sync::mpsc::Sender<UpdateMessage>,
     ) -> Self {
         Self {
             login_tokens,
@@ -170,15 +149,16 @@ impl StatusUpdater {
         if done {
             remove_route(&self.database, route_id).await?;
         }
-        if let Err(error) = self.messages.try_send(Message { route_id, step }) {
+        if let Err(error) = self.messages.try_send(UpdateMessage { route_id, step }) {
+            let mut conn = self.database.acquire().await?;
             match error {
                 tokio::sync::mpsc::error::TrySendError::Full(message) => {
                     event!(Level::DEBUG, %error);
-                    mark_unsent(&self.database, message).await?;
+                    mark_unsent(conn.as_mut(), message).await?;
                 }
                 tokio::sync::mpsc::error::TrySendError::Closed(message) => {
                     event!(Level::ERROR, %error);
-                    mark_unsent(&self.database, message).await?;
+                    mark_unsent(conn.as_mut(), message).await?;
                 }
             }
         }
@@ -268,7 +248,7 @@ mod tests {
     use super::*;
     use crate::constants::{PLANNING_SOCKET, PLANNING_URL};
     use crate::test_utils;
-    use crate::{route_manager::RouteManager, test_utils::generate_test_user_and_vehicle};
+    use crate::test_utils::generate_test_user_and_vehicle;
 
     #[tokio::test]
     async fn test_update_status() {
@@ -316,22 +296,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_mark_outstanding() {
+        use crate::sql::{mark_unsent, retrieve_unsent};
         let pool = test_utils::get_database_pool().await;
         let mut tx = pool.begin().await.unwrap();
         let (_, test_vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
         let route = test_utils::generate_route(test_vehicle, 10);
         let route_id = crate::sql::insert_route(tx.as_mut(), &route).await.unwrap();
-        let message = Message { route_id, step: 3 };
+        let message = UpdateMessage { route_id, step: 3 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
         assert_eq!(unsent.next().unwrap(), message);
         // increasing step works:
-        let message = Message { route_id, step: 5 };
+        let message = UpdateMessage { route_id, step: 5 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
         assert_eq!(unsent.next().unwrap(), message);
         // decreasing does not affect it:
-        let message = Message { route_id, step: 2 };
+        let message = UpdateMessage { route_id, step: 2 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
         assert_eq!(unsent.next().unwrap().step, 5);
@@ -347,7 +328,7 @@ mod tests {
             .add_service(PlanningUpdaterServer::new(planning_server))
             .serve(PLANNING_SOCKET);
         tokio::spawn(server);
-        let message = Message {
+        let message = UpdateMessage {
             route_id: 42,
             step: 4,
         };

@@ -1,7 +1,7 @@
 use crate::types::routes::{DriverRoute, Event, Route};
 use sqlx::{postgres::PgQueryResult, PgConnection};
 
-type Connection<'a> = &'a mut PgConnection;
+pub type Connection<'a> = &'a mut PgConnection;
 
 type Result<T> = std::result::Result<T, sqlx::Error>;
 
@@ -172,4 +172,33 @@ pub async fn check_password(conn: Connection<'_>, username: &str, password: &str
     .fetch_one(conn.as_mut())
     .await
     .map(|row| row.valid)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UpdateMessage {
+    pub route_id: i32,
+    pub step: i32,
+}
+
+pub async fn mark_unsent(conn: Connection<'_>, update: UpdateMessage) -> Result<PgQueryResult> {
+    sqlx::query!(
+        "SELECT insert_or_update_outstanding_delivery($1, $2)",
+        update.route_id,
+        update.step
+    )
+    .execute(conn.as_mut())
+    .await
+}
+
+pub async fn retrieve_unsent(conn: Connection<'_>) -> Result<Vec<UpdateMessage>>
+where
+{
+    sqlx::query_as!(
+        UpdateMessage,
+        "
+            SELECT id as route_id, current_step as step FROM outstandingupdates
+        "
+    )
+    .fetch_all(conn.as_mut())
+    .await
 }
