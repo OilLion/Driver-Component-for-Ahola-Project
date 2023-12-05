@@ -166,6 +166,16 @@ impl StatusUpdater {
     }
 }
 
+/// Retrieves the route status from the database and updates it if the given step is valid and the
+/// route is assigned to the specified driver.
+/// # Errors
+/// Returns:
+/// - [`Error::DriverNotAssigned`] if the given `driver` is not assigned to a route.
+/// - [`Error::RouteUpdateExceedsEventCount`] if the given `step` is larger than the number of
+/// events in the route.
+/// - [`Error::RouteUpdateSmallerThanCurrent`] if the given `step` is smaller than the current
+/// step of the route.
+/// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
 async fn update_status(
     conn: &mut PgConnection,
     driver: &str,
