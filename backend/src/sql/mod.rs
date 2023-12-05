@@ -212,15 +212,32 @@ where
     .await
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct RouteStatus {
-    pub route_id: Option<i32>,
-    pub current_step: Option<i32>,
-    pub total_steps: Option<i64>,
+    pub route_id: i32,
+    pub current_step: i32,
+    pub total_steps: i32,
 }
 
-pub async fn get_assigned_route_status(conn: Connection<'_>, driver: &str) -> Result<RouteStatus> {
-    sqlx::query_as!(
-        RouteStatus,
+impl RouteStatus {
+    fn try_new(
+        route_id: Option<i32>,
+        current_step: Option<i32>,
+        total_steps: Option<i32>,
+    ) -> Option<Self> {
+        Some(RouteStatus {
+            route_id: route_id?,
+            current_step: current_step?,
+            total_steps: total_steps?,
+        })
+    }
+}
+
+pub async fn get_assigned_route_status(
+    conn: Connection<'_>,
+    driver: &str,
+) -> Result<Option<RouteStatus>> {
+    let route_status = sqlx::query!(
         r#"
         SELECT delivery.id as "route_id?", delivery.current_step as current_step, COUNT(*) as total_steps
         FROM driver LEFT JOIN (
@@ -234,7 +251,12 @@ pub async fn get_assigned_route_status(conn: Connection<'_>, driver: &str) -> Re
         driver
     )
     .fetch_one(conn.as_mut())
-    .await
+    .await?;
+    Ok(RouteStatus::try_new(
+        route_status.route_id,
+        route_status.current_step,
+        route_status.total_steps.map(|steps| steps as i32),
+    ))
 }
 
 pub async fn update_status(

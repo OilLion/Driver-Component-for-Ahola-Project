@@ -1,4 +1,4 @@
-use crate::sql::UpdateMessage;
+use crate::sql::{RouteStatus, UpdateMessage};
 use crate::types::LoginTokens;
 use sqlx::{PgConnection, Pool, Postgres};
 use tokio::task::{JoinError, JoinSet};
@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 pub mod grpc_implementation;
 
+use crate::error::Error;
 use crate::sql;
 use grpc_implementation::PlanningUpdaterClient;
 
@@ -148,9 +149,6 @@ impl StatusUpdater {
             .ok_or(crate::error::Error::UnauthenticatedUser)?;
         let mut conn = self.database.acquire().await?;
         let (done, route_id) = update_status(conn.as_mut(), &driver.user, step).await?;
-        if done {
-            sql::delete_route(conn.as_mut(), route_id).await?;
-        }
         if let Err(error) = self.messages.try_send(UpdateMessage { route_id, step }) {
             let mut conn = self.database.acquire().await?;
             match error {
@@ -173,33 +171,23 @@ async fn update_status(
     driver: &str,
     step: i32,
 ) -> Result<(bool, i32), crate::error::Error> {
-    let (id, current_step, total_steps) = {
-        let update_meta = sql::get_assigned_route_status(conn.as_mut(), driver, step).await?;
-        (
-            update_meta
-                .route_id
-                .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))?,
-            update_meta
-                .current_step
-                .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))?,
-            update_meta
-                .total_steps
-                .ok_or(crate::error::Error::DriverNotAssigned(driver.into()))? as i32,
-        )
-    };
+    let RouteStatus {
+        route_id,
+        current_step,
+        total_steps,
+    } = sql::get_assigned_route_status(conn.as_mut(), driver)
+        .await?
+        .ok_or(Error::DriverNotAssigned(driver.into()))?;
     if step > total_steps {
-        Err(crate::error::Error::RouteUpdateExceedsEventCount(
-            step,
-            total_steps,
-        ))
-    } else if current_step <= step {
-        sql::update_status(conn.as_mut(), id, step).await?;
-        Ok((step == total_steps, id))
+        Err(Error::RouteUpdateExceedsEventCount(step, total_steps))
+    } else if current_step > step {
+        Err(Error::RouteUpdateSmallerThanCurrent(step, current_step))
     } else {
-        Err(crate::error::Error::RouteUpdateSmallerThanCurrent(
-            step,
-            current_step,
-        ))
+        sql::update_status(conn.as_mut(), route_id, step).await?;
+        if step == total_steps {
+            sql::delete_route(conn.as_mut(), route_id).await?;
+        }
+        Ok((step == total_steps, route_id))
     }
 }
 
@@ -250,7 +238,7 @@ mod tests {
         // final update returns true
         assert!(update_status(tx.as_mut(), &user, 10)
             .await
-            .is_ok_and(|done| done.0));
+            .is_ok_and(|done| { done.0 == true }));
         tx.rollback().await.unwrap();
     }
 
