@@ -218,11 +218,7 @@ pub struct RouteStatus {
     pub total_steps: Option<i64>,
 }
 
-pub async fn get_assigned_route_status(
-    conn: Connection<'_>,
-    driver: &str,
-    step: i32,
-) -> Result<RouteStatus> {
+pub async fn get_assigned_route_status(conn: Connection<'_>, driver: &str) -> Result<RouteStatus> {
     sqlx::query_as!(
         RouteStatus,
         r#"

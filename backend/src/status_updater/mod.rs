@@ -1,6 +1,6 @@
 use crate::sql::UpdateMessage;
 use crate::types::LoginTokens;
-use sqlx::{Acquire, PgConnection, Pool, Postgres};
+use sqlx::{PgConnection, Pool, Postgres};
 use tokio::task::{JoinError, JoinSet};
 use tonic::Request;
 use tracing::{event, Level};
@@ -168,7 +168,7 @@ impl StatusUpdater {
     }
 }
 
-async fn update_status<'a>(
+async fn update_status(
     conn: &mut PgConnection,
     driver: &str,
     step: i32,
