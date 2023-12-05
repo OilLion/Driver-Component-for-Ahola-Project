@@ -147,7 +147,7 @@ impl StatusUpdater {
             .get_token(&token_id)
             .ok_or(crate::error::Error::UnauthenticatedUser)?;
         let mut conn = self.database.acquire().await?;
-        let (done, route_id) = update_status(&self.database, &driver.user, step).await?;
+        let (done, route_id) = update_status(conn.as_mut(), &driver.user, step).await?;
         if done {
             sql::delete_route(conn.as_mut(), route_id).await?;
         }
@@ -169,11 +169,10 @@ impl StatusUpdater {
 }
 
 async fn update_status<'a>(
-    conn: impl Acquire<'a, Database = Postgres>,
+    conn: &mut PgConnection,
     driver: &str,
     step: i32,
 ) -> Result<(bool, i32), crate::error::Error> {
-    let mut conn = conn.acquire().await?;
     let (id, current_step, total_steps) = {
         let update_meta = sql::get_assigned_route_status(conn.as_mut(), driver, step).await?;
         (
