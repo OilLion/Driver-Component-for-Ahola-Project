@@ -1,22 +1,16 @@
+use crate::{
+    error::{violates_unique_constraint, Error},
+    sql,
+    types::{LoginToken, LoginTokens},
+};
+
+use crate::error::violates_fk_constraint;
 use sqlx::{Pool, Postgres};
-use tracing::{event, instrument, Level};
-
-pub mod grpc_user_manager {
-    tonic::include_proto!("user_manager");
-}
-
-use grpc_user_manager::user_manager_server::UserManager as UserManagerService;
-use grpc_user_manager::{Registration, RegistrationResponse, RegistrationResult};
-use tonic::Response;
-
-use crate::types::{LoginToken, LoginTokens};
-
 use std::time::{Duration, Instant};
 
-use crate::constants::database_error_codes::*;
+pub mod grpc_implementation;
 
-use self::grpc_user_manager::{Login, LoginResponse, LoginResult as GrpcLoginResult};
-
+/// The `UserManager` is responsible for handling the registration and login of drivers.
 #[derive(Debug)]
 pub struct UserManager {
     database: Pool<Postgres>,
@@ -25,6 +19,8 @@ pub struct UserManager {
 }
 
 impl UserManager {
+    /// Creates a new `UserManager` with the given database connection pool and `LoginTokens` map.
+    /// The `user_timeout` specifies how long a user can be logged in before the login token expires.
     pub fn new(
         database: Pool<Postgres>,
         login_tokens: LoginTokens,
@@ -36,161 +32,58 @@ impl UserManager {
             user_timeout,
         }
     }
-    async fn add_driver(
-        &self,
-        username: &str,
-        password: &str,
-        vehicle: &str,
-    ) -> Result<RegisterResult, sqlx::Error> {
-        let result = sqlx::query!(
-            "INSERT INTO DRIVER (name, password, Veh_name)
-                VALUES ($1, $2, $3)",
-            username,
-            password,
-            vehicle,
-        )
-        .execute(&self.database)
-        .await;
-        match result {
-            Ok(_) => Ok(RegisterResult::Success),
-            Err(sqlx::Error::Database(error))
-                if error
-                    .code()
-                    .is_some_and(|code| code == DATABASE_UNIQUE_CONSTRAINT_VIOLATED) =>
-            {
-                Ok(RegisterResult::DuplicateUsername)
-            }
-            Err(err) => Err(err),
-        }
-    }
-    async fn login_driver(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<LoginResult, sqlx::Error> {
-        // let mut transaction = self.database.begin().await?;
-        let query = sqlx::query!(
-            "SELECT password FROM DRIVER
-                WHERE name = $1",
-            username
-        );
-        let result = query.fetch_one(&self.database).await;
-        match result {
-            Ok(record) => Ok(if record.password == password {
-                let expiration = Instant::now() + self.user_timeout;
-                let token = LoginToken::new(username.into(), expiration);
-                self.login_tokens.insert_token(token.id, token.clone());
-                LoginResult::Success(token)
-            } else {
-                LoginResult::InvalidPassword
-            }),
-            Err(sqlx::Error::RowNotFound) => Ok(LoginResult::DoesNotExist),
-            Err(e) => Err(e),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum LoginResult {
-    Success(LoginToken),
-    InvalidPassword,
-    DoesNotExist,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum RegisterResult {
-    Success,
-    DuplicateUsername,
-}
-
-#[tonic::async_trait]
-impl UserManagerService for UserManager {
-    #[instrument]
-    async fn register_user(
-        &self,
-        registration: tonic::Request<Registration>,
-    ) -> Result<Response<RegistrationResponse>, tonic::Status> {
-        let Registration {
-            username,
-            password,
-            vehicle,
-        } = registration.into_inner();
-        match self
-            .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
-            .await
-        {
-            Ok(RegisterResult::Success) => {
-                event!(
-                    Level::INFO,
-                    message = "registered new driver",
-                    %username,
-                );
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::RegistrationSuccess as i32,
-                }))
-            }
-            Ok(RegisterResult::DuplicateUsername) => {
-                event!(
-                    Level::DEBUG,
-                    message = "registration attempt with existing username",
-                    %username,
-                );
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::UserAlreadyExists as i32,
-                }))
-            }
+    /// Registers a new driver with the given `username`, `password` and `vehicle`, by inserting
+    /// a new driver into the database.
+    /// The `username` must be unique and the `vehicle` must be registered in the database,
+    /// otherwise an error is returned.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::DuplicateUsername`] if the given `username` is already registered.
+    /// - [`Error::UnknownVehicle`] if the given `vehicle` is not registered in the database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn add_driver(&self, username: &str, password: &str, vehicle: &str) -> Result<(), Error> {
+        let mut conn = self.database.acquire().await?;
+        match sql::insert_driver(conn.as_mut(), username, password, vehicle).await {
             Err(error) => {
-                event!(Level::ERROR, %error, "unhandled database error");
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::RegistrationUnknownError as i32,
-                }))
+                if violates_unique_constraint(&error) {
+                    Err(Error::DuplicateUsername(username.into()))
+                } else if violates_fk_constraint(&error, Some("fk_driver_associati_vehicle")) {
+                    Err(Error::UnknownVehicle(vehicle.into()))
+                } else {
+                    Err(error.into())
+                }
             }
+            Ok(_) => Ok(()),
         }
     }
-    #[instrument]
-    async fn login_user(
-        &self,
-        login: tonic::Request<Login>,
-    ) -> Result<Response<LoginResponse>, tonic::Status> {
-        let Login { username, password } = login.into_inner();
-        match self
-            .login_driver(username.as_str(), password.as_str())
+    /// Attempts to log in a driver with the given `username` and `password`.
+    /// Checks if the password in the database matches the one supplied.
+    /// If the passwords match, a new [`LoginToken`] is created and inserted
+    /// into the [`login_tokens`](struct.UserManager.html#structfield.login_tokens) map.
+    /// A copy of the token is returned.
+    ///
+    /// # Errors
+    /// Returns:
+    /// - [`Error::DriverNotRegistered`] if the given `username` is not found in the
+    /// database.
+    /// - [`Error::InvalidPassword`] if the given `password` does not match the one in the
+    /// database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn login_driver(&self, username: &str, password: &str) -> Result<LoginToken, Error> {
+        let mut conn = self.database.acquire().await?;
+        let password_matches = sql::check_password(conn.as_mut(), username, password)
             .await
-        {
-            Ok(login_result) => Ok(Response::new(match login_result {
-                LoginResult::Success(token) => {
-                    event!(Level::INFO, user_logged_in = %username);
-                    LoginResponse {
-                        result: GrpcLoginResult::LoginSuccess as i32,
-                        uuid: (*token.id.as_bytes()).into(),
-                        duration: self.user_timeout.as_secs(),
-                    }
-                }
-                LoginResult::InvalidPassword => {
-                    event!(Level::DEBUG, %username, "user attempted to login with wrong password");
-                    LoginResponse {
-                        result: GrpcLoginResult::InvalidPassword as i32,
-                        uuid: vec![],
-                        duration: 0,
-                    }
-                }
-                LoginResult::DoesNotExist => {
-                    event!(Level::DEBUG, %username, "loginattempt with nonexistent username");
-                    LoginResponse {
-                        result: GrpcLoginResult::DoesNotExist as i32,
-                        uuid: vec![],
-                        duration: 0,
-                    }
-                }
-            })),
-            Err(error) => {
-                event!(Level::ERROR, %username, %error, "loginattempt lead to unhandled error");
-                Ok(Response::new(LoginResponse {
-                    result: GrpcLoginResult::LoginUnknownError as i32,
-                    uuid: vec![],
-                    duration: 0,
-                }))
-            }
+            .map_err(|error| match error {
+                sqlx::Error::RowNotFound => Error::DriverNotRegistered(username.into()),
+                err => err.into(),
+            })?;
+        if password_matches {
+            let expiration = Instant::now() + self.user_timeout;
+            let token = LoginToken::new(username.into(), expiration);
+            self.login_tokens.insert_token(token.id, token.clone());
+            Ok(token)
+        } else {
+            Err(Error::InvalidPassword)
         }
     }
 }
@@ -198,7 +91,7 @@ impl UserManagerService for UserManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::DATABASE_URL;
+    use crate::{constants::DATABASE_URL, error::Error};
     use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
     use uuid::Uuid;
 
@@ -233,18 +126,14 @@ mod tests {
         assert_eq!(driver.password, password);
         assert_eq!(driver.veh_name, "Truck");
         // Try logging in as the driver
-        let login_token = user_manager
+        let token = user_manager
             .login_driver(username.as_str(), password.as_str())
             .await
             .unwrap();
         // Login should be successful and the returned token should
         // match the one in the `LoginTokens` map
-        if let LoginResult::Success(token) = login_token {
-            assert_eq!(token.user, username);
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
+        assert_eq!(token.user, username);
+        assert!(tokens.contains_token(&token.id));
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
             .await
@@ -261,11 +150,11 @@ mod tests {
             .add_driver(username.as_str(), password.as_str(), vehicle)
             .await
             .is_ok());
-        let result = user_manager
+        let error = user_manager
             .add_driver(&username.as_str(), password.as_str(), vehicle)
             .await
-            .unwrap();
-        assert!(matches!(result, RegisterResult::DuplicateUsername));
+            .unwrap_err();
+        assert!(matches!(error, Error::DuplicateUsername(err_name) if err_name == username));
 
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
@@ -284,11 +173,10 @@ mod tests {
             .await
             .is_ok());
 
-        let login_result = user_manager
+        let login_error = user_manager
             .login_driver(username.as_str(), "wrong password")
-            .await
-            .unwrap();
-        assert!(matches!(login_result, LoginResult::InvalidPassword));
+            .await;
+        assert!(login_error.is_err_and(|err| matches!(err, Error::InvalidPassword)));
         // no login token should be in the LoginTokens map
         assert!(tokens.is_empty());
 
@@ -303,12 +191,11 @@ mod tests {
         let (_, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
-        let login_result = user_manager
+        let login_error = user_manager
             .login_driver(username.as_str(), password.as_str())
-            .await
-            .unwrap();
+            .await;
+        assert!(login_error.is_err_and(|err| matches!(err, Error::DriverNotRegistered(username))));
         assert!(tokens.is_empty());
-        assert!(matches!(login_result, LoginResult::DoesNotExist))
     }
 
     #[tokio::test]
@@ -331,20 +218,25 @@ mod tests {
             .unwrap();
         // login tokens should not be equal
         assert_ne!(login_token_a, login_token_b);
-        if let LoginResult::Success(token) = login_token_a {
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
-        if let LoginResult::Success(token) = login_token_b {
-            assert!(tokens.contains_token(&token.id));
-        } else {
-            panic!("wrong LoginResult variant")
-        }
+        assert!(tokens.contains_token(&login_token_a.id));
+        assert!(tokens.contains_token(&login_token_b.id));
         sqlx::query!("DELETE FROM DRIVER WHERE name = $1", username)
             .execute(&pool)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn insert_for_nonexistet_vehicle() {
+        let (_, user_manager, _) = setup().await;
+        let username = Uuid::new_v4().to_string();
+        let password = Uuid::new_v4().to_string();
+        let vehicle = Uuid::new_v4().to_string();
+        let error = user_manager
+            .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, Error::UnknownVehicle(err_vehicle) if err_vehicle == vehicle));
     }
 
     /// Test helper function to setup the databse connect and needed objects

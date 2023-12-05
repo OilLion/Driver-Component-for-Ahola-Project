@@ -1,3 +1,7 @@
+use crate::constants::database_error_codes::{
+    DATABASE_FOREIGN_KEY_VIOLATION, DATABASE_UNIQUE_CONSTRAINT_VIOLATED,
+};
+use sqlx::error::DatabaseError;
 use thiserror::Error;
 use tonic::{Code, Status};
 
@@ -27,6 +31,12 @@ pub enum Error {
     RouteUpdateExceedsEventCount(i32, i32),
     #[error("supplied token id is invalid")]
     MalformedTokenId,
+    #[error("driver {0} not registered")]
+    DriverNotRegistered(String),
+    #[error("invalid passowrd")]
+    InvalidPassword,
+    #[error("driver with name {0} already registered")]
+    DuplicateUsername(String),
 }
 
 impl From<Error> for Status {
@@ -37,14 +47,51 @@ impl From<Error> for Status {
             | Error::IncompatibelVehicle(_)
             | Error::RouteUpdateSmallerThanCurrent(_, _)
             | Error::RouteUpdateExceedsEventCount(_, _)
-            | Error::MalformedTokenId => Code::InvalidArgument,
-            Error::UnknownVehicle(_) | Error::UnknownRoute(_) => Code::NotFound,
-            Error::RouteAlreadyAssigned(_) | Error::DriverAlreadyAssigned(_) => {
-                Code::ResourceExhausted
+            | Error::MalformedTokenId
+            | Error::InvalidPassword => Code::InvalidArgument,
+            Error::UnknownVehicle(_) | Error::UnknownRoute(_) | Error::DriverNotRegistered(_) => {
+                Code::NotFound
             }
+            Error::RouteAlreadyAssigned(_)
+            | Error::DriverAlreadyAssigned(_)
+            | Error::DuplicateUsername(_) => Code::ResourceExhausted,
             Error::UnauthenticatedUser => Code::Unauthenticated,
             Error::UnhandledDatabaseError(_) => Code::Unknown,
         };
         Self::new(code, error.to_string())
+    }
+}
+
+/// checks if a DatabaseError has a code which matches the supplied code.
+fn error_code(error: &Box<dyn DatabaseError>, code: &str) -> bool {
+    error.code().is_some_and(|err_code| err_code == code)
+}
+
+/// checks if a DatabaseError has a constraint which matches the supplied constraint.
+fn error_constraint(error: &Box<dyn DatabaseError>, constraint: &str) -> bool {
+    error
+        .constraint()
+        .is_some_and(|err_constraint| err_constraint == constraint)
+}
+
+/// checks if a `sqlx::Error` is a `Error::Database` and if the contained
+/// `DatabaseError` is notifying a unique constraint violation.
+pub fn violates_unique_constraint(error: &sqlx::Error) -> bool {
+    if let sqlx::Error::Database(error) = error {
+        error_code(error, DATABASE_UNIQUE_CONSTRAINT_VIOLATED)
+    } else {
+        false
+    }
+}
+
+/// checks if a `sqlx::Error` is a `Error::Database` and if the contained
+/// `DatabaseError` is notifying a foreign key constraint violation.
+/// Optionally checks the constraint name, if one is supplied in `details`.
+pub fn violates_fk_constraint(error: &sqlx::Error, details: Option<&str>) -> bool {
+    if let sqlx::Error::Database(error) = error {
+        error_code(error, DATABASE_FOREIGN_KEY_VIOLATION)
+            && details.map_or(true, |details| error_constraint(error, details))
+    } else {
+        false
     }
 }

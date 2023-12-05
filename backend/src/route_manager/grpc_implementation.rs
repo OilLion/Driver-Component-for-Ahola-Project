@@ -1,31 +1,28 @@
+use tonic::{Request, Response};
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
+
+use super::RouteManager;
+use crate::error::Error;
+use crate::types::routes::{DriverRoute, Event, Route};
+
 pub mod grpc_route_manager {
     tonic::include_proto!("route_manager");
 }
 use grpc_route_manager::route_manager_server::RouteManager as RouteManagerService;
 
-// import type definitions from proto
 #[rustfmt::skip]
 use grpc_route_manager::{
+    AddRouteResponse,
     Event as EventMessage,
-    Route as RouteMessage,
-    AddRouteResponse, 
-    RoutesReply,
-    RouteReply,
     GetRoutesRequest,
-    SelectRouteRequest,
     Result as RMResult,
+    Route as RouteMessage,
+    RouteReply,
+    RoutesReply,
+    SelectRouteRequest,
+    SelectRouteResponse,
 };
-
-use tonic::{Request, Response};
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
-
-use crate::error::Error;
-use crate::types::routes::{Event, Route};
-
-use self::grpc_route_manager::SelectRouteResponse;
-
-use super::{RouteManager, _Route};
 
 impl From<RouteMessage> for Route {
     fn from(route_message: RouteMessage) -> Self {
@@ -89,7 +86,10 @@ impl From<Error> for SelectRouteResponse {
                 | Error::RouteUpdateSmallerThanCurrent(..)
                 | Error::RouteUpdateExceedsEventCount(_, _)
                 | Error::MalformedTokenId
-                | Error::InvalidRoute => RMResult::UnknownError.into(),
+                | Error::InvalidRoute
+                | Error::DriverNotRegistered(_)
+                | Error::InvalidPassword
+                | Error::DuplicateUsername(_) => RMResult::UnknownError.into(),
             },
         }
     }
@@ -118,6 +118,16 @@ where
 
 #[tonic::async_trait]
 impl RouteManagerService for RouteManager {
+    /// Inserts a new route into the database, by calling the [`insert_route`](RouteManager::insert_route) method.
+    /// The `vehicle` and `events` are taken from the [`Route`] message.
+    /// The `Result<i32, Error>` is mapped into the appropriate
+    /// [`AddRouteResponse`] in a [`Response`].
+    /// If the route is successfully inserted, the assigned id is returned in the response.
+    /// #Logging
+    /// Logs the result of the insertion attempt with an appropriate log [`Level`].
+    /// Unknown errors are logged with [`Level::ERROR`] and all other errors are logged with
+    /// [`Level::DEBUG`].
+    /// A successful insertion is logged with [`Level::INFO`].
     #[instrument]
     async fn add_route(
         &self,
@@ -132,6 +142,15 @@ impl RouteManagerService for RouteManager {
         ))
     }
 
+    /// Retrieves routes from the database, by calling the [`get_routes`](RouteManager::get_routes) method.
+    /// The `uuid` is taken from the [`GetRoutesRequest`] message.
+    /// The `Result<Vec<DriverRoute>, Error>` is mapped into the appropriate
+    /// [`RoutesReply`] in a [`Response`].
+    /// If the routes are successfully retrieved, they are returned in the response.
+    /// #Logging
+    /// Logs the result of the retrieval attempt with an appropriate log [`Level`].
+    /// Unknown errors are logged with [`Level::ERROR`] and all other errors are logged with
+    /// [`Level::DEBUG`].
     #[instrument]
     async fn get_routes(
         &self,
@@ -155,6 +174,16 @@ impl RouteManagerService for RouteManager {
         ))
     }
 
+    /// Selects a route for a driver, by calling the [`select_route`](RouteManager::select_route) method.
+    /// The `route_id` and `uuid` are taken from the [`SelectRouteRequest`] message.
+    /// The `Result<(), Error>` is mapped into the appropriate
+    /// [`SelectRouteResponse`] in a [`Response`].
+    /// If the route is successfully selected, the response contains [`RMResult::Success`].
+    /// #Logging
+    /// Logs the result of the selection attempt with an appropriate log [`Level`].
+    /// Unknown errors are logged with [`Level::ERROR`] and all other errors are logged with
+    /// [`Level::DEBUG`].
+    /// A successful selection is logged with [`Level::INFO`].
     #[instrument]
     async fn select_route(
         &self,
@@ -176,17 +205,17 @@ impl RouteManagerService for RouteManager {
     }
 }
 
-impl From<_Route> for RouteReply {
-    fn from(route: _Route) -> Self {
+impl From<DriverRoute> for RouteReply {
+    fn from(route: DriverRoute) -> Self {
         Self {
             events: route
-                .1
+                .events
                 .into_iter()
                 .map(|event| EventMessage {
                     location: event.location,
                 })
                 .collect(),
-            route_id: route.0,
+            route_id: route.id,
         }
     }
 }

@@ -1,19 +1,22 @@
-use std::collections::BTreeMap;
-
-pub mod grpc_implementation;
-
-use sqlx::{error::DatabaseError, postgres::PgArguments, query::Query, Acquire, Pool, Postgres};
+use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
-    constants::database_error_codes::DATABASE_FOREIGN_KEY_VIOLATION,
-    error::Error,
+    error::{violates_fk_constraint, Error},
+    sql::{
+        assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
+    },
     types::{
-        routes::{Event, Route},
+        routes::{DriverRoute, Route},
         LoginTokens,
     },
 };
 
+pub mod grpc_implementation;
+
+/// The `RouteManager` is responsible for handling routes.
+/// It can add new routes to the database and retrieve routes based on a drivers specific vehicle,
+/// as well as assign a driver to a route.
 #[derive(Debug)]
 pub struct RouteManager {
     database: Pool<Postgres>,
@@ -21,209 +24,117 @@ pub struct RouteManager {
 }
 
 impl RouteManager {
+    /// Creates a new `RouteManager` with the given database connection pool and `LoginTokens` map.
     pub fn new(database: Pool<Postgres>, login_tokens: LoginTokens) -> Self {
         Self {
             database,
             login_tokens,
         }
     }
+    /// Adds the `route` to the database and returns the id of the route, as assigned by the database.
+    /// Delegates to [`add_route_helper`](Self::add_route_helper) for the actual insertion.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::InvalidRoute`] if the given `route` has less than 2 events.
+    /// - [`Error::UnknownVehicle`] if the given `route` has a vehicle that is
+    ///     not registered in the database.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn add_route(&self, route: Route) -> Result<i32, Error> {
-        if route.events.len() < 2 {
-            return Err(Error::InvalidRoute);
-        }
-        let route_id = Self::add_route_helper(&self.database, route).await?;
+        let mut conn = self.database.acquire().await?;
+        let route_id = Self::add_route_helper(&mut conn, route).await?;
         Ok(route_id)
     }
 
-    pub(super) async fn add_route_helper(
-        conn: impl Acquire<'_, Database = Postgres> + Send,
-        route: Route,
-    ) -> Result<i32, Error> {
-        let mut conn = conn.acquire().await?;
+    async fn add_route_helper(conn: &mut PgConnection, route: Route) -> Result<i32, Error> {
         if route.events.len() < 2 {
             return Err(Error::InvalidRoute);
         }
-        // insert a new route and retreive the id
-        let route_id = sqlx::query!(
-            "INSERT INTO DELIVERY (veh_name)
-                            VALUES ($1)
-                            RETURNING id",
-            route.vehicle
-        )
-        .fetch_one(conn.as_mut())
-        .await
-        .map_err(|error| match error {
-            sqlx::Error::Database(error)
-                if Self::check_error(
-                    error.as_ref(),
-                    DATABASE_FOREIGN_KEY_VIOLATION,
-                    "fk_delivery_associati_vehicle",
-                ) =>
-            {
+        insert_route(conn.as_mut(), &route).await.map_err(|error| {
+            if violates_fk_constraint(&error, Some("fk_delivery_associati_vehicle")) {
                 Error::UnknownVehicle(route.vehicle.clone())
+            } else {
+                error.into()
             }
-            err => err.into(),
-        })?
-        .id;
-        let event_insert_queries = Self::route_event_insert_queries(&route_id, route.events.iter());
-        for insert in event_insert_queries {
-            insert.execute(conn.as_mut()).await?;
-        }
-        Ok(route_id)
-    }
-
-    fn route_event_insert_queries<'a>(
-        route_id: &'a i32,
-        events: impl Iterator<Item = &'a Event>,
-    ) -> impl Iterator<Item = Query<'a, Postgres, PgArguments>> {
-        events.zip(0i32..).map(|(event, index)| {
-            sqlx::query!(
-                "INSERT INTO EVENT (Del_id, location, step)
-                    VALUES ($1, $2, $3)",
-                *route_id,
-                event.location,
-                index
-            )
         })
     }
 
-    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = _Route> + '_, Error> {
-        Self::get_route_helper(&self.database, &self.login_tokens, &token_id).await
+    /// Retrieves all routes for the driver associated with the given `token_id`.
+    /// Only routes with the same vehicle as the driver are returned.
+    /// Delegate to [`get_route_helper`](Self::get_route_helper) for the actual retrieval.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::UnauthenticatedUser`] if the given `token_id` is not associated with a driver.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    async fn get_routes(&self, token_id: Uuid) -> Result<impl Iterator<Item = DriverRoute>, Error> {
+        let mut conn = self.database.acquire().await?;
+        Self::get_route_helper(conn.as_mut(), &self.login_tokens, &token_id).await
     }
 
     async fn get_route_helper(
-        conn: impl Acquire<'_, Database = Postgres>,
+        conn: &mut PgConnection,
         login_tokens: &LoginTokens,
         token_id: &Uuid,
-    ) -> Result<impl Iterator<Item = _Route>, Error> {
+    ) -> Result<impl Iterator<Item = DriverRoute>, Error> {
         let login_token = login_tokens
             .get_token(&token_id)
             .ok_or(Error::UnauthenticatedUser)?;
         let user_name = login_token.user.as_str();
-        let values = Self::retrieve_routes_for_user(conn, user_name).await?;
-        Ok(values.into_values())
+        retrieve_routes_for_user(conn, user_name)
+            .await
+            .map_err(|err| err.into())
     }
 
-    async fn retrieve_routes_for_user<'a, A>(
-        connection: A,
-        user: &str,
-    ) -> Result<BTreeMap<i32, _Route>, sqlx::Error>
-    where
-        A: Acquire<'a, Database = Postgres>,
-    {
-        let mut connection = connection.acquire().await?;
-        let mut routes: BTreeMap<i32, _Route> = BTreeMap::new();
-        sqlx::query!(
-            "
-                        SELECT de.id, ev.location, ev.step FROM
-                            driver dr, delivery de, event ev
-                            WHERE dr.name = $1
-                            AND   dr.veh_name = de.veh_name
-                            AND   de.id = ev.del_id
-                            ORDER BY de.id, ev.step
-                    ",
-            user
-        )
-        .fetch_all(&mut *connection)
-        .await?
-        .into_iter()
-        .for_each(|event| {
-            routes
-                .entry(event.id)
-                .or_insert(_Route(event.id, vec![]))
-                .1
-                .push(Event {
-                    location: event.location,
-                });
-        });
-        Ok(routes)
-    }
-
+    /// Assigns the driver associated with the given `token_id` to the route with the given `route_id`.
+    /// Delegates to [`select_route_helper`](Self::select_route_helper) for the actual assignment.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::UnauthenticatedUser`] if the given `token_id` is not associated with a driver.
+    /// - [`Error::UnknownRoute`] if the given `route_id` is not found in the database.
+    /// - [`Error::RouteAlreadyAssigned`] if the given `route_id` is already assigned to a driver.
+    /// - [`Error::DriverAlreadyAssigned`] if the driver associated with the given `token_id` is
+    ///    already assigned to a route.
+    /// - [`Error::IncompatibelVehicle`] if the vehicle of the driver associated with the given
+    ///     `token_id` does not match the vehicle of the route with the given `route_id`.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn select_route(&self, token_id: &Uuid, route_id: i32) -> Result<bool, Error> {
         let token = self
             .login_tokens
             .get_token(token_id)
             .ok_or(Error::UnauthenticatedUser)?;
         let name = token.user.as_str();
-        Self::select_route_helper(&self.database, &name, route_id).await?;
+        let mut conn = self.database.acquire().await?;
+        Self::select_route_helper(conn.as_mut(), &name, route_id).await?;
         Ok(true)
     }
 
-    pub(super) async fn select_route_helper(
-        conn: impl Acquire<'_, Database = Postgres>,
+    async fn select_route_helper(
+        conn: &'_ mut PgConnection,
         name: &str,
-
         route_id: i32,
     ) -> Result<bool, Error> {
-        let mut conn = conn.acquire().await?;
-        let mut conn = conn.begin().await?;
-        let route = sqlx::query!(
-            "
-                SELECT veh_name, name FROM delivery
-                where id=$1
-            ",
-            route_id
-        )
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(|error| match error {
-            sqlx::Error::RowNotFound => Error::UnknownRoute(route_id),
-            err => err.into(),
-        })?;
-        if route.name.is_some() {
+        let conn = conn.acquire().await?;
+        let mut tx = conn.begin().await?;
+        let route = get_route(tx.as_mut(), route_id)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::RowNotFound => Error::UnknownRoute(route_id),
+                err => err.into(),
+            })?;
+        if route.is_assigned() {
             return Err(Error::RouteAlreadyAssigned(route_id));
         }
-        let driver = sqlx::query!(
-            "
-                SELECT veh_name, id FROM driver
-                where name=$1
-            ",
-            name
-        )
-        .fetch_one(&mut *conn)
-        .await?;
-        if driver.id.is_some() {
+        let driver_info = get_driver_info(tx.as_mut(), name).await?;
+        if driver_info.is_assigned() {
             return Err(Error::DriverAlreadyAssigned(name.into()));
         }
-        if driver.veh_name != route.veh_name {
-            return Err(Error::IncompatibelVehicle(route.veh_name.into()));
+        if driver_info.vehicle != route.vehicle {
+            return Err(Error::IncompatibelVehicle(route.vehicle.into()));
         }
-        sqlx::query!(
-            "
-                UPDATE driver
-                SET id = $1
-                WHERE driver.name= $2
-            ",
-            route_id,
-            name
-        )
-        .execute(conn.as_mut())
-        .await?;
-        sqlx::query!(
-            "
-                UPDATE delivery
-                SET name=$1
-                WHERE id=$2
-            ",
-            name,
-            route_id
-        )
-        .execute(conn.as_mut())
-        .await?;
-        conn.commit().await?;
+        assign_driver_to_route(tx.as_mut(), name, route_id).await?;
+        tx.commit().await?;
         Ok(true)
     }
-
-    fn check_error(error: &dyn DatabaseError, code: &str, constraint: &str) -> bool {
-        error.code().is_some_and(|error_code| error_code == code)
-            && error
-                .constraint()
-                .is_some_and(|error_constraint| error_constraint == constraint)
-    }
 }
-
-#[derive(Debug)]
-struct _Route(i32, Vec<Event>);
 
 #[cfg(test)]
 mod route_manager_tests {
@@ -249,28 +160,10 @@ mod route_manager_tests {
         RouteManager::select_route_helper(tx.as_mut(), &username, route_id)
             .await
             .unwrap();
-        let route = sqlx::query!(
-            "
-                SELECT * FROM delivery
-                WHERE id = $1
-            ",
-            route_id
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        let user = sqlx::query!(
-            "
-                SELECT * FROM driver
-                WHERE name = $1
-            ",
-            username
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        assert!(user.id.is_some_and(|id| id == route.id));
-        assert!(route.name.is_some_and(|name| name == user.name));
+        let route = get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = get_driver_info(tx.as_mut(), &username).await.unwrap();
+        assert!(user.route.is_some_and(|id| id == route_id));
+        assert!(route.driver.is_some_and(|name| name == username));
         tx.rollback().await.unwrap();
     }
 
@@ -292,28 +185,10 @@ mod route_manager_tests {
                 panic!("{}", err)
             })
         );
-        let route = sqlx::query!(
-            "
-                SELECT * FROM delivery
-                WHERE id = $1
-            ",
-            route_id
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        let user = sqlx::query!(
-            "
-                SELECT * FROM driver
-                WHERE name = $1
-            ",
-            username
-        )
-        .fetch_one(tx.as_mut())
-        .await
-        .unwrap();
-        assert!(user.id.is_none());
-        assert!(route.name.is_none());
+        let route = get_route(tx.as_mut(), route_id).await.unwrap();
+        let user = get_driver_info(tx.as_mut(), &username).await.unwrap();
+        assert!(!user.is_assigned());
+        assert!(!route.is_assigned());
     }
 
     #[tokio::test]
@@ -423,7 +298,7 @@ mod route_manager_tests {
             .await
             .unwrap();
         for (retrieved, inserted) in retrieved_routes.zip(inserted_routes) {
-            assert_eq!(retrieved.1, inserted.events)
+            assert_eq!(retrieved.events, inserted.events)
         }
         tx.rollback().await.unwrap();
     }
@@ -446,22 +321,7 @@ mod route_manager_tests {
             .map(|_| test_utils::generate_route(vehicle.into(), event_count))
             .collect();
         for route in &routes {
-            let route_id = sqlx::query!(
-                "INSERT INTO DELIVERY (veh_name)
-                            VALUES ($1)
-                            RETURNING id",
-                route.vehicle
-            )
-            .fetch_one(connection.as_mut())
-            // .fetch_one(connection)
-            .await
-            .unwrap()
-            .id;
-            let event_insert_queries =
-                RouteManager::route_event_insert_queries(&route_id, route.events.iter());
-            for insert_query in event_insert_queries {
-                insert_query.execute(connection.as_mut()).await.unwrap();
-            }
+            insert_route(connection.as_mut(), &route).await.unwrap();
         }
         routes
     }

@@ -1,3 +1,5 @@
+use backend::user_manager::grpc_implementation::UserManagerServer;
+
 use backend::{
     args::{Args, Parser},
     route_manager::{
@@ -9,7 +11,7 @@ use backend::{
         grpc_implementation::grpc_status_updater::driver_updater_server::DriverUpdaterServer,
     },
     types::LoginTokens,
-    user_manager::{grpc_user_manager::user_manager_server::UserManagerServer, UserManager},
+    user_manager::UserManager,
 };
 
 use sqlx::postgres::PgPoolOptions;
