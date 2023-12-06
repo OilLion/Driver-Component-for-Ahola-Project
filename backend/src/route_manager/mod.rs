@@ -342,6 +342,7 @@ mod route_manager_tests {
             .unwrap();
         assert_eq!(assigned_route.route.events, route.events);
         assert_eq!(assigned_route.route.id, route_id);
+        assert_eq!(assigned_route.step, 1);
         tx.rollback().await.unwrap()
     }
 
