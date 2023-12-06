@@ -143,10 +143,12 @@ impl RouteManager {
     /// - [`Error::DriverNotAssigned`] if the driver associated with the given `token_id` is not
     ///    assigned to a route.
     /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
-    async fn get_assigned_route(&self, token_id: &Uuid) -> Result<DriverRoute, Error> {
+    /// - [`Error::MalformedTokenId`] if the given `token_id` is not a valid [`Uuid`].
+    async fn get_assigned_route(&self, token_id: &[u8]) -> Result<DriverRoute, Error> {
+        let token_id = Uuid::from_slice(token_id)?;
         let token = self
             .login_tokens
-            .get_token(token_id)
+            .get_token(&token_id)
             .ok_or(Error::UnauthenticatedUser)?;
         let name = token.user.as_str();
         let mut conn = self.database.acquire().await?;
