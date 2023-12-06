@@ -1,4 +1,4 @@
-use tonic::{Request, Response};
+use tonic::{Request, Response, Status};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -23,6 +23,7 @@ use grpc_route_manager::{
     SelectRouteRequest,
     SelectRouteResponse,
 };
+use crate::route_manager::grpc_implementation::grpc_route_manager::GetAssignedRouteRequest;
 
 impl From<RouteMessage> for Route {
     fn from(route_message: RouteMessage) -> Self {
@@ -202,6 +203,14 @@ impl RouteManagerService for RouteManager {
                 result: RMResult::MalformedLoginToken.into(),
             }
         }))
+    }
+
+    #[instrument]
+    async fn get_assigned_route(
+        &self,
+        request: Request<GetAssignedRouteRequest>,
+    ) -> Result<Response<RouteReply>, Status> {
+        todo!()
     }
 }
 

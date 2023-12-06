@@ -117,6 +117,35 @@ pub async fn assign_driver_to_route(conn: Connection<'_>, name: &str, id: i32) -
     Ok(())
 }
 
+pub async fn retrieve_assigned_route(
+    conn: Connection<'_>,
+    name: &str,
+) -> Result<Option<DriverRoute>> {
+    let mut route_events = sqlx::query!(
+        "
+        SELECT de.id, ev.location, ev.step FROM
+        driver dr, delivery de, event ev
+        WHERE dr.id = de.id
+        AND de.id = ev.del_id
+        AND dr.name = $1
+        ORDER BY ev.step
+        ",
+        name
+    )
+    .fetch_all(conn.as_mut())
+    .await?
+    .into_iter()
+    .peekable();
+    let Some(mut route) = route_events.peek().map(|row| DriverRoute {
+        id: row.id,
+        events: vec![],
+    }) else {
+        return Ok(None);
+    };
+    route.events = route_events.map(|row| Event::new(row.location)).collect();
+    Ok(Some(route))
+}
+
 pub async fn retrieve_routes_for_user(
     connection: Connection<'_>,
     user: &str,
