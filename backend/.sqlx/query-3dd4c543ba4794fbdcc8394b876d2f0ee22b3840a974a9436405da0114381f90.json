@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT delivery.id as \"route_id?\", delivery.current_step as \"current_step?\", COUNT(*) as total_steps\n        FROM driver LEFT JOIN (\n            SELECT id, current_step\n            FROM event\n            JOIN delivery ON event.del_id=delivery.id\n            ) as delivery on driver.id = delivery.id\n        WHERE driver.name = $1\n        GROUP BY delivery.id, delivery.current_step;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "route_id?",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_step?",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_steps",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "3dd4c543ba4794fbdcc8394b876d2f0ee22b3840a974a9436405da0114381f90"
+}

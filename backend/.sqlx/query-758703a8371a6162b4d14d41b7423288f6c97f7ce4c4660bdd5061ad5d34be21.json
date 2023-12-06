@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO DRIVER (name, password, Veh_name)\n                VALUES ($1, $2, $3)",
+  "query": "\n        INSERT INTO DRIVER (name, password, Veh_name)\n        VALUES ($1, $2, $3)\n        ",
   "describe": {
     "columns": [],
     "parameters": {
@@ -12,5 +12,5 @@
     },
     "nullable": []
   },
-  "hash": "e77eb137856453eaf9714d54fd738c2521f2e287ec1bcca3d4b250e25f0e1ab6"
+  "hash": "758703a8371a6162b4d14d41b7423288f6c97f7ce4c4660bdd5061ad5d34be21"
 }

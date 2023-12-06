@@ -1,16 +1,16 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                SELECT veh_name, name FROM delivery\n                where id=$1\n            ",
+  "query": " \n        SELECT veh_name as vehicle, name as driver \n        FROM delivery\n        where id=$1\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "veh_name",
+        "name": "vehicle",
         "type_info": "Varchar"
       },
       {
         "ordinal": 1,
-        "name": "name",
+        "name": "driver",
         "type_info": "Varchar"
       }
     ],
@@ -24,5 +24,5 @@
       true
     ]
   },
-  "hash": "c5cb178dfd688766b83ac6c48d399590778bd137e03403c7c8d8b7c8de25b6e3"
+  "hash": "d9347f229ad2851ff184f68ba1189a1b602dcc197ba2c6dc47d02b6c6a272141"
 }
