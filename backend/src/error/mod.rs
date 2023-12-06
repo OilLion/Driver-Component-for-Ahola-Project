@@ -29,8 +29,8 @@ pub enum Error {
     RouteUpdateSmallerThanCurrent(i32, i32),
     #[error("invalid status update, new step {0} exceeds total steps {1}")]
     RouteUpdateExceedsEventCount(i32, i32),
-    #[error("supplied token id is invalid")]
-    MalformedTokenId,
+    #[error("supplied token id is invalid {0}")]
+    MalformedTokenId(#[from] uuid::Error),
     #[error("driver {0} not registered")]
     DriverNotRegistered(String),
     #[error("invalid passowrd")]
@@ -47,7 +47,7 @@ impl From<Error> for Status {
             | Error::IncompatibelVehicle(_)
             | Error::RouteUpdateSmallerThanCurrent(_, _)
             | Error::RouteUpdateExceedsEventCount(_, _)
-            | Error::MalformedTokenId
+            | Error::MalformedTokenId(_)
             | Error::InvalidPassword => Code::InvalidArgument,
             Error::UnknownVehicle(_) | Error::UnknownRoute(_) | Error::DriverNotRegistered(_) => {
                 Code::NotFound

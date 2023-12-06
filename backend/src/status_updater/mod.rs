@@ -141,8 +141,7 @@ impl StatusUpdater {
         }
     }
     async fn update_status(&self, token_id: &[u8], step: i32) -> Result<bool, crate::error::Error> {
-        let token_id =
-            Uuid::from_slice(token_id).map_err(|_| crate::error::Error::MalformedTokenId)?;
+        let token_id = Uuid::from_slice(token_id)?;
         let driver = self
             .login_tokens
             .get_token(&token_id)
