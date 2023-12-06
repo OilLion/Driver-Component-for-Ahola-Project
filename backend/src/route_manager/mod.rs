@@ -1,6 +1,7 @@
 use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
+use crate::sql::AssignedRoute;
 use crate::{
     error::{violates_fk_constraint, Error},
     sql,
@@ -144,7 +145,7 @@ impl RouteManager {
     ///    assigned to a route.
     /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     /// - [`Error::MalformedTokenId`] if the given `token_id` is not a valid [`Uuid`].
-    async fn get_assigned_route(&self, token_id: &[u8]) -> Result<DriverRoute, Error> {
+    async fn get_assigned_route(&self, token_id: &[u8]) -> Result<AssignedRoute, Error> {
         let token_id = Uuid::from_slice(token_id)?;
         let token = self
             .login_tokens
@@ -339,9 +340,9 @@ mod route_manager_tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(assigned_route.events, route.events);
-        assert_eq!(assigned_route.id, route_id);
-        tx.rollback()
+        assert_eq!(assigned_route.route.events, route.events);
+        assert_eq!(assigned_route.route.id, route_id);
+        tx.rollback().await.unwrap()
     }
 
     async fn setup() -> (Pool<Postgres>, RouteManager, LoginTokens) {

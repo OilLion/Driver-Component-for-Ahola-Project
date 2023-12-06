@@ -35,7 +35,7 @@ create table Delivery (
    id                   SERIAL               not null,
    Veh_name             VARCHAR(254)         not null,
    name                 VARCHAR(254)         null, 
-   current_step         INT4                 DEFAULT 1,
+   current_step         INT4                 not null DEFAULT 1,
    constraint PK_DELIVERY primary key (id)
 );
 

@@ -242,6 +242,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_status_unassigned() {
+        let pool = test_utils::get_database_pool().await;
+        let mut tx = pool.begin().await.unwrap();
+        let (user, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
+        // updating status forward works
+        let result = update_status(tx.as_mut(), &user, 2).await;
+        assert!(matches!(
+            result,
+            Err(crate::error::Error::DriverNotAssigned(_)),
+        ));
+        tx.rollback().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn test_mark_outstanding() {
         use crate::sql::{mark_unsent, retrieve_unsent};
         let pool = test_utils::get_database_pool().await;

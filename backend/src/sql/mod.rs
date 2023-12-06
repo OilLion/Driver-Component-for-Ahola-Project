@@ -117,13 +117,18 @@ pub async fn assign_driver_to_route(conn: Connection<'_>, name: &str, id: i32) -
     Ok(())
 }
 
+pub struct AssignedRoute {
+    pub route: DriverRoute,
+    pub step: i32,
+}
+
 pub async fn retrieve_assigned_route(
     conn: Connection<'_>,
     name: &str,
-) -> Result<Option<DriverRoute>> {
+) -> Result<Option<AssignedRoute>> {
     let mut route_events = sqlx::query!(
         "
-        SELECT de.id, ev.location, ev.step FROM
+        SELECT de.id, de.current_step, ev.location, ev.step FROM
         driver dr, delivery de, event ev
         WHERE dr.id = de.id
         AND de.id = ev.del_id
@@ -136,13 +141,16 @@ pub async fn retrieve_assigned_route(
     .await?
     .into_iter()
     .peekable();
-    let Some(mut route) = route_events.peek().map(|row| DriverRoute {
-        id: row.id,
-        events: vec![],
+    let Some(mut route) = route_events.peek().map(|row| AssignedRoute {
+        route: DriverRoute {
+            id: row.id,
+            events: vec![],
+        },
+        step: row.current_step,
     }) else {
         return Ok(None);
     };
-    route.events = route_events.map(|row| Event::new(row.location)).collect();
+    route.route.events = route_events.map(|row| Event::new(row.location)).collect();
     Ok(Some(route))
 }
 
@@ -268,7 +276,7 @@ pub async fn get_assigned_route_status(
 ) -> Result<Option<RouteStatus>> {
     let route_status = sqlx::query!(
         r#"
-        SELECT delivery.id as "route_id?", delivery.current_step as current_step, COUNT(*) as total_steps
+        SELECT delivery.id as "route_id?", delivery.current_step as "current_step?", COUNT(*) as total_steps
         FROM driver LEFT JOIN (
             SELECT id, current_step
             FROM event

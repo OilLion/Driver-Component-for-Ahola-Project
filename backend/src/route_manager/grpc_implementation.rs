@@ -14,6 +14,7 @@ use grpc_route_manager::route_manager_server::RouteManager as RouteManagerServic
 #[rustfmt::skip]
 use grpc_route_manager::{
     AddRouteResponse,
+    AssignedRoute,
     Event as EventMessage,
     GetRoutesRequest,
     Result as RMResult,
@@ -24,6 +25,7 @@ use grpc_route_manager::{
     SelectRouteResponse,
 };
 use crate::route_manager::grpc_implementation::grpc_route_manager::GetAssignedRouteRequest;
+use crate::sql;
 
 impl From<RouteMessage> for Route {
     fn from(route_message: RouteMessage) -> Self {
@@ -86,7 +88,7 @@ impl From<Error> for SelectRouteResponse {
                 | Error::UnknownVehicle(_)
                 | Error::RouteUpdateSmallerThanCurrent(..)
                 | Error::RouteUpdateExceedsEventCount(_, _)
-                | Error::MalformedTokenId
+                | Error::MalformedTokenId(_)
                 | Error::InvalidRoute
                 | Error::DriverNotRegistered(_)
                 | Error::InvalidPassword
@@ -209,8 +211,15 @@ impl RouteManagerService for RouteManager {
     async fn get_assigned_route(
         &self,
         request: Request<GetAssignedRouteRequest>,
-    ) -> Result<Response<RouteReply>, Status> {
-        todo!()
+    ) -> Result<Response<AssignedRoute>, Status> {
+        let GetAssignedRouteRequest { uuid } = request.into_inner();
+        let sql::AssignedRoute { route, step } = self.get_assigned_route(&uuid).await?;
+        Ok(Response::new({
+            AssignedRoute {
+                route: Some(route.into()),
+                current_step: step,
+            }
+        }))
     }
 }
 
