@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO DELIVERY (veh_name)\n                            VALUES ($1)\n                            RETURNING id",
+  "query": "INSERT INTO DELIVERY (veh_name)\n                        VALUES ($1)\n                        RETURNING id",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "2d612b722bbb5a66b2ab69df99e23e85f91f9b90c3aba399e5a94c056ab521a9"
+  "hash": "bd4679e48e4559b391bbc3011ef0e5a318d79ddc8481b4f3cbce5f8de7b0268f"
 }

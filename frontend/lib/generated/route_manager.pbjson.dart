@@ -118,6 +118,32 @@ const GetRoutesRequest$json = {
 final $typed_data.Uint8List getRoutesRequestDescriptor = $convert.base64Decode(
     'ChBHZXRSb3V0ZXNSZXF1ZXN0EhIKBHV1aWQYASABKAxSBHV1aWQ=');
 
+@$core.Deprecated('Use getAssignedRouteRequestDescriptor instead')
+const GetAssignedRouteRequest$json = {
+  '1': 'GetAssignedRouteRequest',
+  '2': [
+    {'1': 'uuid', '3': 1, '4': 1, '5': 12, '10': 'uuid'},
+  ],
+};
+
+/// Descriptor for `GetAssignedRouteRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getAssignedRouteRequestDescriptor = $convert.base64Decode(
+    'ChdHZXRBc3NpZ25lZFJvdXRlUmVxdWVzdBISCgR1dWlkGAEgASgMUgR1dWlk');
+
+@$core.Deprecated('Use assignedRouteDescriptor instead')
+const AssignedRoute$json = {
+  '1': 'AssignedRoute',
+  '2': [
+    {'1': 'route', '3': 1, '4': 1, '5': 11, '6': '.route_manager.RouteReply', '10': 'route'},
+    {'1': 'current_step', '3': 2, '4': 1, '5': 5, '10': 'currentStep'},
+  ],
+};
+
+/// Descriptor for `AssignedRoute`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List assignedRouteDescriptor = $convert.base64Decode(
+    'Cg1Bc3NpZ25lZFJvdXRlEi8KBXJvdXRlGAEgASgLMhkucm91dGVfbWFuYWdlci5Sb3V0ZVJlcG'
+    'x5UgVyb3V0ZRIhCgxjdXJyZW50X3N0ZXAYAiABKAVSC2N1cnJlbnRTdGVw');
+
 @$core.Deprecated('Use selectRouteRequestDescriptor instead')
 const SelectRouteRequest$json = {
   '1': 'SelectRouteRequest',

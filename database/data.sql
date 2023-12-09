@@ -35,11 +35,3 @@ INSERT INTO driver (name, password, veh_name)
 VALUES ('Christian', '1234', 'Truck'),
        ('Oli', '1234', 'Van'),
        ('Atta', '1234', 'Truck');
-
-UPDATE delivery
-SET name='Atta'
-WHERE id = 1;
-
-UPDATE driver
-SET id = 1
-WHERE name='Atta';

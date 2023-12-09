@@ -1,8 +1,10 @@
 use sqlx::{Acquire, PgConnection, Pool, Postgres};
 use uuid::Uuid;
 
+use crate::sql::AssignedRoute;
 use crate::{
     error::{violates_fk_constraint, Error},
+    sql,
     sql::{
         assign_driver_to_route, get_driver_info, get_route, insert_route, retrieve_routes_for_user,
     },
@@ -133,6 +135,27 @@ impl RouteManager {
         assign_driver_to_route(tx.as_mut(), name, route_id).await?;
         tx.commit().await?;
         Ok(true)
+    }
+
+    /// Retrieves the route assigned to the driver associated with the given `token_id`.
+    /// # Errors
+    /// Returns:
+    /// - [`Error::UnauthenticatedUser`] if the given `token_id` is not associated with a driver.
+    /// - [`Error::DriverNotAssigned`] if the driver associated with the given `token_id` is not
+    ///    assigned to a route.
+    /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
+    /// - [`Error::MalformedTokenId`] if the given `token_id` is not a valid [`Uuid`].
+    async fn get_assigned_route(&self, token_id: &[u8]) -> Result<AssignedRoute, Error> {
+        let token_id = Uuid::from_slice(token_id)?;
+        let token = self
+            .login_tokens
+            .get_token(&token_id)
+            .ok_or(Error::UnauthenticatedUser)?;
+        let name = token.user.as_str();
+        let mut conn = self.database.acquire().await?;
+        sql::retrieve_assigned_route(conn.as_mut(), name)
+            .await?
+            .ok_or(Error::DriverNotAssigned(name.into()))
     }
 }
 
@@ -301,6 +324,26 @@ mod route_manager_tests {
             assert_eq!(retrieved.events, inserted.events)
         }
         tx.rollback().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn get_assigned_route() {
+        let (pool, _, _) = setup().await;
+        let mut tx = pool.begin().await.unwrap();
+        let (username, vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
+        let route = test_utils::generate_route(vehicle.clone(), 3);
+        let route_id = sql::insert_route(tx.as_mut(), &route).await.unwrap();
+        sql::assign_driver_to_route(tx.as_mut(), &username, route_id)
+            .await
+            .unwrap();
+        let assigned_route = sql::retrieve_assigned_route(tx.as_mut(), &username)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(assigned_route.route.events, route.events);
+        assert_eq!(assigned_route.route.id, route_id);
+        assert_eq!(assigned_route.step, 1);
+        tx.rollback().await.unwrap()
     }
 
     async fn setup() -> (Pool<Postgres>, RouteManager, LoginTokens) {

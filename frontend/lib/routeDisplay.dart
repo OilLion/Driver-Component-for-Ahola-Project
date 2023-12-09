@@ -1,11 +1,7 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/userData.dart';
 import 'package:grpc/grpc.dart';
-import 'generated/route_manager.pb.dart';
-import 'package:frontend/menuScreen.dart';
 
 import 'generated/status_updater.pb.dart';
 
@@ -32,8 +28,7 @@ class RouteDisplayStateful extends StatefulWidget{
 }
 
 class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
-  List<String> test = ['eins', 'zwei', 'drei'];
-  int currentStep = 0;
+  //int currentStep = UserData.instance.currentStep;
 
 
   @override
@@ -58,11 +53,11 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
     for (int i = 0;i < UserData.instance.activeRoute.events.length;i++) {
       steps.add(
         Step(
-          state: currentStep >= i ? StepState.complete : StepState.indexed,
-          isActive: currentStep >= i,
+          state: UserData.instance.currentStep >= i ? StepState.complete : StepState.indexed,
+          isActive: UserData.instance.currentStep >= i,
           title: Text(UserData.instance.activeRoute.events[i].location),
           content: Container(
-            child: const Text('Content of Step'),
+            //child: const Text('Content of Step'),
           )
         )
       );
@@ -73,7 +68,7 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
   Stepper stepper() {
     return Stepper(
       controlsBuilder: (context, ControlsDetails details) {
-        final isLastStep = currentStep == getSteps().length -2;
+        final isLastStep = UserData.instance.currentStep == getSteps().length -2;
         return Row(
           children: [
             Expanded(
@@ -86,16 +81,18 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
         );
       },
       steps: getSteps(),
-      currentStep: currentStep,
+      currentStep: UserData.instance.currentStep,
       onStepContinue: () {
-        setState(() => currentStep += 1);
-        updateStatus(currentStep).whenComplete(() {
+        setState(() => UserData.instance.currentStep += 1);
+        updateStatus(UserData.instance.currentStep).whenComplete(() {
           if(statusUpdateResponse) {
+            UserData.instance.currentStep = 0;
+            UserData.instance.alreadyAssigned = false;
             Navigator.pop(context);
           }
         });
       },
-      onStepCancel: currentStep == 0 ? null : () => setState(() => currentStep -= 1),
+      onStepCancel: UserData.instance.currentStep == 0 ? null : () => setState(() => UserData.instance.currentStep -= 1),
     );
   }
 

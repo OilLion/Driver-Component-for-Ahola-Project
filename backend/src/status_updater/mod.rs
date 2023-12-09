@@ -141,8 +141,7 @@ impl StatusUpdater {
         }
     }
     async fn update_status(&self, token_id: &[u8], step: i32) -> Result<bool, crate::error::Error> {
-        let token_id =
-            Uuid::from_slice(token_id).map_err(|_| crate::error::Error::MalformedTokenId)?;
+        let token_id = Uuid::from_slice(token_id)?;
         let driver = self
             .login_tokens
             .get_token(&token_id)
@@ -239,6 +238,20 @@ mod tests {
         assert!(update_status(tx.as_mut(), &user, 10)
             .await
             .is_ok_and(|done| { done.0 == true }));
+        tx.rollback().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_status_unassigned() {
+        let pool = test_utils::get_database_pool().await;
+        let mut tx = pool.begin().await.unwrap();
+        let (user, vehicle) = generate_test_user_and_vehicle(tx.as_mut()).await;
+        // updating status forward works
+        let result = update_status(tx.as_mut(), &user, 2).await;
+        assert!(matches!(
+            result,
+            Err(crate::error::Error::DriverNotAssigned(_)),
+        ));
         tx.rollback().await.unwrap();
     }
 

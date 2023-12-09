@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT de.id, de.current_step, ev.location, ev.step FROM\n        driver dr, delivery de, event ev\n        WHERE dr.id = de.id\n        AND de.id = ev.del_id\n        AND dr.name = $1\n        ORDER BY ev.step\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_step",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "location",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "step",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "618463f8f65370a07f9a2f176532348217cfa8e3ae3186dd8ee5dbf65e43ff1f"
+}

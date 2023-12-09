@@ -6,10 +6,11 @@ import 'package:frontend/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  String routeIdToAccept = '5';
-  String userName = 'Oli';
+  String routeIdToAccept = '1';
+  String userName = 'Christian';
   String password = '1234';
-
+  int delayTime = 3;
+  int amountOfSteps = 4;
 
   testWidgets('Whole App Test',
       (WidgetTester tester) async {
@@ -26,19 +27,18 @@ void main() {
     await tester.enterText(passwordField, password);
     await tester.pumpAndSettle();
     await tester.tap(loginButton);
-    await Future.delayed(const Duration(seconds: 1));
     await tester.pumpAndSettle();
+    await Future.delayed(Duration(seconds: delayTime));
 
     expect(find.byKey(const Key('menuScreen')), findsOneWidget);
-    //await tester.pumpAndSettle();
-
 
     /// Get Routes on Menu Screen
     final Finder getRoutesButton = find.byKey(const Key('getRoutesButton'));
 
     await tester.tap(getRoutesButton);
-    await Future.delayed(const Duration(seconds: 2));
     await tester.pumpAndSettle();
+    await Future.delayed(Duration(seconds: delayTime));
+
 
     expect(find.byKey(Key(routeIdToAccept)), findsOneWidget);
 
@@ -46,35 +46,19 @@ void main() {
     final Finder acceptRouteButton = find.byKey(Key(routeIdToAccept));
 
     await tester.tap(acceptRouteButton);
-    await Future.delayed(const Duration(seconds: 2));
     await tester.pumpAndSettle();
+    await Future.delayed(Duration(seconds: delayTime));
 
     expect(find.byKey(const Key('routeDisplayScreen')), findsOneWidget);
 
-    /// Continue 1 Step
-    final Finder continueButton = find.byType(ElevatedButton).first;
+    /// Continue through the Steps
 
-    await tester.tap(continueButton);
-    await Future.delayed(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    for (int i=0;i<amountOfSteps-1;i++){
+      Finder continueButton = find.byType(ElevatedButton).at(i);
+      await tester.tap(continueButton);
+      await tester.pumpAndSettle();
+      await Future.delayed(Duration(seconds: delayTime));
+    }
 
 
     });
