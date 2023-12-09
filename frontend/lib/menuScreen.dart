@@ -145,7 +145,10 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
         case 0:
           UserData.instance.activeRoute = _routes[index];
           UserData.instance.alreadyAssigned = true;
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()))
+              .then((value) {
+                _handleGetRouteButton();
+          });
           break;
         case 3:
           _showAlertDialog('Unknown Route');
@@ -166,7 +169,6 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           _showAlertDialog('Unknown Error occured!');
       }
     });
-    print("after handle accept");
   }
 
   Future<void> acceptRoute(int index) async {
