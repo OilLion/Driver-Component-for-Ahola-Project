@@ -24,12 +24,19 @@ class MenuScreen extends StatelessWidget {
 class MenuScreenStateful extends StatefulWidget{
   const MenuScreenStateful({super.key});
 
+
   @override
   State<StatefulWidget> createState() => MenuScreenStatefulState();
 }
 
 class MenuScreenStatefulState extends State<MenuScreenStateful>{
   List<RouteReply> _routes = [];
+  //bool alreadyAssigned = false;
+
+  @override void initState() {
+    super.initState();
+    _checkIfAlreadyAssigned();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +53,14 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
         ),
       ),
     );
+  }
+
+  void _checkIfAlreadyAssigned() {
+    checkAssignedRoute().whenComplete(() {
+      if(UserData.instance.alreadyAssigned) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
+      }
+    });
   }
 
   SizedBox getRouteButton() {
@@ -128,8 +143,8 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     acceptRoute(index).whenComplete(() {
       switch(acceptRouteResponse) {
         case 0:
-          //print("successful!");
           UserData.instance.activeRoute = _routes[index];
+          UserData.instance.alreadyAssigned = true;
           Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
           break;
         case 3:
@@ -210,6 +225,34 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     } on GrpcError catch (e) {
       /// handle GRPC Errors
       print(e);
+    } catch (e) {
+      /// handle Generic Errors
+      print(e);
+    }
+  }
+
+  int checkAssignedRouteresponse = -1;
+  int currentStep = -1;
+
+  Future<void> checkAssignedRoute() async {
+    try {
+      GetAssignedRouteRequest getRequest = GetAssignedRouteRequest();
+      getRequest.uuid = UserData.instance.uuid;
+
+      var responseGetRequest = await
+      RouteManagerService.instance.routeClient.getAssignedRoute(getRequest);
+      setState(() {
+        UserData.instance.activeRoute = responseGetRequest.route;
+        UserData.instance.currentStep = responseGetRequest.currentStep;
+        UserData.instance.alreadyAssigned = true;
+      });
+    } on GrpcError catch (e) {
+      /// handle GRPC Errors
+      if (e.code == 3){
+        UserData.instance.alreadyAssigned = false;
+      } else {
+        print(e);
+      }
     } catch (e) {
       /// handle Generic Errors
       print(e);

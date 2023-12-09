@@ -32,8 +32,7 @@ class RouteDisplayStateful extends StatefulWidget{
 }
 
 class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
-  List<String> test = ['eins', 'zwei', 'drei'];
-  int currentStep = 0;
+  int currentStep = UserData.instance.currentStep - 1;
 
 
   @override
@@ -62,7 +61,7 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
           isActive: currentStep >= i,
           title: Text(UserData.instance.activeRoute.events[i].location),
           content: Container(
-            child: const Text('Content of Step'),
+            //child: const Text('Content of Step'),
           )
         )
       );
@@ -91,6 +90,8 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
         setState(() => currentStep += 1);
         updateStatus(currentStep).whenComplete(() {
           if(statusUpdateResponse) {
+            UserData.instance.currentStep = 0;
+            UserData.instance.alreadyAssigned = false;
             Navigator.pop(context);
           }
         });
