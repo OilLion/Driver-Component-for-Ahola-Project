@@ -355,6 +355,122 @@ class GetRoutesRequest extends $pb.GeneratedMessage {
   void clearUuid() => clearField(1);
 }
 
+class GetAssignedRouteRequest extends $pb.GeneratedMessage {
+  factory GetAssignedRouteRequest({
+    $core.List<$core.int>? uuid,
+  }) {
+    final $result = create();
+    if (uuid != null) {
+      $result.uuid = uuid;
+    }
+    return $result;
+  }
+  GetAssignedRouteRequest._() : super();
+  factory GetAssignedRouteRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetAssignedRouteRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'GetAssignedRouteRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
+    ..a<$core.List<$core.int>>(1, _omitFieldNames ? '' : 'uuid', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetAssignedRouteRequest clone() => GetAssignedRouteRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetAssignedRouteRequest copyWith(void Function(GetAssignedRouteRequest) updates) => super.copyWith((message) => updates(message as GetAssignedRouteRequest)) as GetAssignedRouteRequest;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetAssignedRouteRequest create() => GetAssignedRouteRequest._();
+  GetAssignedRouteRequest createEmptyInstance() => create();
+  static $pb.PbList<GetAssignedRouteRequest> createRepeated() => $pb.PbList<GetAssignedRouteRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetAssignedRouteRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetAssignedRouteRequest>(create);
+  static GetAssignedRouteRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.List<$core.int> get uuid => $_getN(0);
+  @$pb.TagNumber(1)
+  set uuid($core.List<$core.int> v) { $_setBytes(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasUuid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUuid() => clearField(1);
+}
+
+class AssignedRoute extends $pb.GeneratedMessage {
+  factory AssignedRoute({
+    RouteReply? route,
+    $core.int? currentStep,
+  }) {
+    final $result = create();
+    if (route != null) {
+      $result.route = route;
+    }
+    if (currentStep != null) {
+      $result.currentStep = currentStep;
+    }
+    return $result;
+  }
+  AssignedRoute._() : super();
+  factory AssignedRoute.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory AssignedRoute.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'AssignedRoute', package: const $pb.PackageName(_omitMessageNames ? '' : 'route_manager'), createEmptyInstance: create)
+    ..aOM<RouteReply>(1, _omitFieldNames ? '' : 'route', subBuilder: RouteReply.create)
+    ..a<$core.int>(2, _omitFieldNames ? '' : 'currentStep', $pb.PbFieldType.O3)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  AssignedRoute clone() => AssignedRoute()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  AssignedRoute copyWith(void Function(AssignedRoute) updates) => super.copyWith((message) => updates(message as AssignedRoute)) as AssignedRoute;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static AssignedRoute create() => AssignedRoute._();
+  AssignedRoute createEmptyInstance() => create();
+  static $pb.PbList<AssignedRoute> createRepeated() => $pb.PbList<AssignedRoute>();
+  @$core.pragma('dart2js:noInline')
+  static AssignedRoute getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<AssignedRoute>(create);
+  static AssignedRoute? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  RouteReply get route => $_getN(0);
+  @$pb.TagNumber(1)
+  set route(RouteReply v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasRoute() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRoute() => clearField(1);
+  @$pb.TagNumber(1)
+  RouteReply ensureRoute() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.int get currentStep => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set currentStep($core.int v) { $_setSignedInt32(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasCurrentStep() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCurrentStep() => clearField(2);
+}
+
 class SelectRouteRequest extends $pb.GeneratedMessage {
   factory SelectRouteRequest({
     $core.int? routeId,
