@@ -14,7 +14,7 @@ class MenuScreen extends StatelessWidget {
     return Scaffold(
       key: const Key('menuScreen'),
       appBar: AppBar(
-        title: const Text('Menu Screen'),
+        title: const Text('MAIN MENU'),
       ),
       body: const MenuScreenStateful(),
     );
@@ -55,17 +55,12 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     );
   }
 
-  SizedBox getRouteButton() {
-    return SizedBox(
-      height: 30,
-      width: 120,
-      child: TextButton(
+  Center getRouteButton() {
+    return Center(
+      child: ElevatedButton(
         key: const Key('getRoutesButton'),
-          onPressed: _handleGetRouteButton,
-          style: const ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(Colors.blue),
-              foregroundColor: MaterialStatePropertyAll(Colors.white)),
-          child: const Text("Get Routes")
+        onPressed: _handleGetRouteButton,
+        child: const Text("GET ROUTES"),
       ),
     );
   }
@@ -102,10 +97,10 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
                             },
                           ),
                         ),
-                        TextButton(
+                        ElevatedButton(
                             key: Key(_routes[index].routeId.toString()),
                             onPressed: ()=>_handleAccept(index),
-                            child: const Text("Accept this Route"))
+                            child: const Text("ACCEPT THIS ROUTE"))
                       ],
                     ),
                   ),
@@ -137,22 +132,22 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           });
           break;
         case 3:
-          _showAlertDialog('Unknown Route');
+          _showAlertDialog('UNKNOWN ROUTE');
           break;
         case 4:
-          _showAlertDialog('Route already assigned!');
+          _showAlertDialog('ROUTE ALREADY ASSIGNED!');
           break;
         case 5:
-          _showAlertDialog('DriverAlreadyAssigned!');
+          _showAlertDialog('DRIVER ALREADY ASSIGNED!');
           break;
         case 6:
-          _showAlertDialog('Unauthenticated User!');
+          _showAlertDialog('UNAUTHENTICATED USER!');
           break;
         case 8:
-          _showAlertDialog('Malformed Login Token');
+          _showAlertDialog('MALFORMED LOGIN TOKEN');
           break;
         default:
-          _showAlertDialog('Unknown Error occured!');
+          _showAlertDialog('UNKNOWN ERROR OCCURED!');
       }
     });
   }
@@ -186,16 +181,16 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           //print("Get Routes was successful");
           break;
         case 3:
-          _showAlertDialog('Unknown Route');
+          _showAlertDialog('UNKNOWN ROUTE');
           break;
         case 6:
-          _showAlertDialog('Unauthenticated User!');
+          _showAlertDialog('UNAUTHENTICATED USER!');
           break;
         case 8:
-          _showAlertDialog('Malformed Login Token');
+          _showAlertDialog('MALFORMED LOGIN TOKEN');
           break;
         default:
-          _showAlertDialog('Unknown Error occured!');
+          _showAlertDialog('UNKNOWN ERROR OCCURED!');
       }
     });
   }
@@ -256,7 +251,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           title: Text(title),
           actions: <Widget>[
             TextButton(
-              child: const Text('Ok'),
+              child: const Text('OK'),
               onPressed: (){
                 Navigator.of(context).pop();
               },

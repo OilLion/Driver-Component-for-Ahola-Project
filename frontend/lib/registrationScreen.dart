@@ -12,7 +12,8 @@ class RegistrationScreen extends StatelessWidget{
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registration'),
+        backgroundColor: const Color.fromARGB(255, 51, 1, 40),
+        title: const Text('REGISTRATION'),
       ),
       body: const RegistrationScreenStateful(),
     );
@@ -59,8 +60,8 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     return (TextFormField(  // Username
       decoration: const InputDecoration(
           icon: Icon(Icons.account_box),
-          hintText: 'Your Username',
-          labelText: 'Username'
+          hintText: 'YOUR USERNAME',
+          labelText: 'USERNAME'
       ),
       onSaved: (value) => UserData.instance.username = value!,
       validator: (value){
@@ -75,8 +76,8 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
         obscureText: passwordVisible,
         decoration: InputDecoration(
             icon: const Icon(Icons.password),
-            hintText: 'Your Password',
-            labelText: 'Password',
+            hintText: 'YOUR PASSWORD',
+            labelText: 'PASSWORD',
             suffixIcon: IconButton(
               icon: Icon(
                   passwordVisible ? Icons.visibility : Icons.visibility_off),
@@ -116,12 +117,15 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     );
   }
 
-  TextButton registrationButton() {
-    return (TextButton(
+  Center registrationButton() {
+    return Center(
+      child: ElevatedButton(
         onPressed: _handleRegisterButton,
-        child: const Text("Register")
-    ));
+        child: const Text("REGISTER"),
+      ),
+    );
   }
+
 
   int registrationResponse = -1;
 
@@ -138,9 +142,9 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
         if(registrationResponse == 0) {
           Navigator.pop(context);
         } else if (registrationResponse == 1){
-          _showAlertDialog('Username already exists!');
+          _showAlertDialog('USERNAME ALREADY EXISTS!');
         } else {
-          _showAlertDialog('Unknown Error occured!');
+          _showAlertDialog('UNKNOWN ERROR OCCURED!');
         }
       });
     }
@@ -178,7 +182,7 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
           title: Text(title),
           actions: <Widget>[
             TextButton(
-              child: const Text('Ok'),
+              child: const Text('OK'),
               onPressed: (){
                 Navigator.of(context).pop();
               },

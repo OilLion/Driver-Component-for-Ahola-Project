@@ -47,8 +47,8 @@ class LoginScreenState extends State<LoginScreen>{
       key: const Key('userNameField'),
       decoration: const InputDecoration(
           icon: Icon(Icons.account_box),
-          hintText: 'Your Username',
-          labelText: 'Username'
+          hintText: 'YOUR USERNAME',
+          labelText: 'USERNAME'
       ),
       onSaved: (value) => UserData.instance.username = value!,
       validator: (value){
@@ -64,8 +64,8 @@ class LoginScreenState extends State<LoginScreen>{
         obscureText: passwordVisible,
         decoration: InputDecoration(
             icon: const Icon(Icons.password),
-            hintText: 'Your Password',
-            labelText: 'Password',
+            hintText: 'YOUR PASSWORD',
+            labelText: 'PASSWORD',
             suffixIcon: IconButton(
               icon: Icon(passwordVisible ? Icons.visibility : Icons.visibility_off),
               onPressed: () {
@@ -84,20 +84,22 @@ class LoginScreenState extends State<LoginScreen>{
   }
 
   Center loginButton() {
-    return (Center(
+    return Center(
       child: ElevatedButton(
         key: const Key('login'),
         onPressed: _handleLoginButton,
-        child: const Text('Log In'),
+        child: const Text('LOG IN'),
       ),
-    ));
+    );
   }
 
-  TextButton registrationButton() {
-    return (TextButton(
+  Center registrationButton() {
+    return Center(
+      child: ElevatedButton(
         onPressed: _handleRegisterButton,
-        child: const Text("Register")
-    ));
+        child: const Text("REGISTER"),
+      ),
+    );
   }
 
 
@@ -116,13 +118,13 @@ class LoginScreenState extends State<LoginScreen>{
             Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuScreen()));
             break;
           case 1:
-            _showAlertDialog('Password is incorrect');
+            _showAlertDialog('PASSWORD IS INCORRECT');
             break;
           case 2:
-            _showAlertDialog('Username doesnt exist!');
+            _showAlertDialog('USERNAME DOESNT EXIST!');
             break;
           default:
-            _showAlertDialog('Unknown Error occured!');
+            _showAlertDialog('UNKNOWN ERROR OCCURED!');
         }
       });
     }
@@ -162,7 +164,7 @@ class LoginScreenState extends State<LoginScreen>{
           title: Text(title),
           actions: <Widget>[
             TextButton(
-              child: const Text('Ok'),
+              child: const Text('OK'),
               onPressed: (){
                 Navigator.of(context).pop();
               },
