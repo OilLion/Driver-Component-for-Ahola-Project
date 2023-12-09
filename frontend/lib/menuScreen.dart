@@ -55,14 +55,6 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
     );
   }
 
-  void _checkIfAlreadyAssigned() {
-    checkAssignedRoute().whenComplete(() {
-      if(UserData.instance.alreadyAssigned) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
-      }
-    });
-  }
-
   SizedBox getRouteButton() {
     return SizedBox(
       height: 30,
@@ -93,36 +85,22 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
                   child: Card(
                     child: Column(
                       children: [
-                        Stepper(
-                          controlsBuilder: (context, controller) {
-                            return const Row(children: []);
-                          },
-                          steps: <Step>[
-                            Step(
-                              title: Text(_routes[index].events.first.location),
-                              content: SizedBox(
-                                height: 80,  //height of individual Routes
-                                child: ListView.builder(
-                                  itemCount: _routes[index].events.length,
-                                  itemBuilder: (context, indexEvents) {
-                                    return Container(
-                                      alignment: Alignment.topLeft,
-                                      child: Column(
-                                        children: [
-                                          Text(_routes[index].events[indexEvents].location,
-                                         ),
-                                        ],
-                                      ),
-                                    );
-                                  },
+                        SizedBox(
+                          height: 80,  //height of individual Routes
+                          child: ListView.builder(
+                            itemCount: _routes[index].events.length,
+                            itemBuilder: (context, indexEvents) {
+                              return Container(
+                                alignment: Alignment.topLeft,
+                                child: Column(
+                                  children: [
+                                    Text(_routes[index].events[indexEvents].location,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ),
-                            Step(
-                              title: Text(_routes[index].events.last.location),
-                              content: Text(_routes[index].events.last.location),
-                            ),
-                          ],
+                              );
+                            },
+                          ),
                         ),
                         TextButton(
                             key: Key(_routes[index].routeId.toString()),
@@ -135,6 +113,14 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
               ],
             );
           });
+  }
+
+  void _checkIfAlreadyAssigned() {
+    checkAssignedRoute().whenComplete(() {
+      if(UserData.instance.alreadyAssigned) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const RouteDisplay()));
+      }
+    });
   }
 
   int acceptRouteResponse = -1;

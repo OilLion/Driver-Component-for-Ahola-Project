@@ -1,11 +1,7 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/userData.dart';
 import 'package:grpc/grpc.dart';
-import 'generated/route_manager.pb.dart';
-import 'package:frontend/menuScreen.dart';
 
 import 'generated/status_updater.pb.dart';
 
