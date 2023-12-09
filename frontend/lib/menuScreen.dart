@@ -166,6 +166,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           _showAlertDialog('Unknown Error occured!');
       }
     });
+    print("after handle accept");
   }
 
   Future<void> acceptRoute(int index) async {
@@ -243,7 +244,7 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
       RouteManagerService.instance.routeClient.getAssignedRoute(getRequest);
       setState(() {
         UserData.instance.activeRoute = responseGetRequest.route;
-        UserData.instance.currentStep = responseGetRequest.currentStep;
+        UserData.instance.currentStep = responseGetRequest.currentStep - 1;
         UserData.instance.alreadyAssigned = true;
       });
     } on GrpcError catch (e) {

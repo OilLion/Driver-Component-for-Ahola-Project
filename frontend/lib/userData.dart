@@ -7,7 +7,7 @@ class UserData{
   List<int> uuid = [];
   int duration = 0;
   RouteReply activeRoute = RouteReply();
-  int currentStep = 1;
+  int currentStep = 0;
   bool alreadyAssigned = false;
 
   UserData._();
