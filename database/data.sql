@@ -17,7 +17,12 @@ VALUES (1, 'Darmstadt', 1),
 
 INSERT INTO event (del_id, location, step)
 VALUES (2, 'Darmstadt', 1),
-       (2, 'Frankfurt Airport', 2);
+       (2, 'Frankfurt', 2),
+       (2, 'Frankfurt Airport', 3),
+       (2, 'Helsinki Airport', 4),
+       (2, 'Oulu Airport', 5),
+       (2, 'Oulu', 6),
+       (2, 'Kokkola', 7);
 
 INSERT INTO event (del_id, location, step)
 VALUES (3, 'Helsinki Airport', 1),
