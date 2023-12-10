@@ -13,7 +13,7 @@ class RouteDisplay extends StatelessWidget {
     return Scaffold(
       key: const Key('routeDisplayScreen'),
       appBar: AppBar(
-        title: const Text('Route Display'),
+        title: const Text('YOUR ROUTE'),
       ),
       body: const RouteDisplayStateful(),
     );
@@ -67,33 +67,33 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
 
   Stepper stepper() {
     return Stepper(
-      controlsBuilder: (context, ControlsDetails details) {
-        final isLastStep = UserData.instance.currentStep == getSteps().length -2;
-        return Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: details.onStepContinue,
-                child: Text(isLastStep ? 'Finish Delivery' : 'Next Step'),
+        controlsBuilder: (context, ControlsDetails details) {
+          final isLastStep = UserData.instance.currentStep == getSteps().length -2;
+          return Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: details.onStepContinue,
+                  child: Text(isLastStep ? 'FINISH DELIVERY' : 'NEXT STEP'),
+                ),
               ),
-            ),
-          ],
-        );
-      },
-      steps: getSteps(),
-      currentStep: UserData.instance.currentStep,
-      onStepContinue: () {
-        setState(() => UserData.instance.currentStep += 1);
-        updateStatus(UserData.instance.currentStep).whenComplete(() {
-          if(statusUpdateResponse) {
-            UserData.instance.currentStep = 0;
-            UserData.instance.alreadyAssigned = false;
-            Navigator.pop(context);
-          }
-        });
-      },
-      onStepCancel: UserData.instance.currentStep == 0 ? null : () => setState(() => UserData.instance.currentStep -= 1),
-    );
+            ],
+          );
+        },
+        steps: getSteps(),
+        currentStep: UserData.instance.currentStep,
+        onStepContinue: () {
+          setState(() => UserData.instance.currentStep += 1);
+          updateStatus(UserData.instance.currentStep).whenComplete(() {
+            if(statusUpdateResponse) {
+              UserData.instance.currentStep = 0;
+              UserData.instance.alreadyAssigned = false;
+              Navigator.pop(context);
+            }
+          });
+        },
+        onStepCancel: UserData.instance.currentStep == 0 ? null : () => setState(() => UserData.instance.currentStep -= 1),
+      );
   }
 
   bool statusUpdateResponse = false;
