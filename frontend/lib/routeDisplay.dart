@@ -28,8 +28,6 @@ class RouteDisplayStateful extends StatefulWidget{
 }
 
 class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
-  //int currentStep = UserData.instance.currentStep;
-
 
   @override
   Widget build(BuildContext context) {
