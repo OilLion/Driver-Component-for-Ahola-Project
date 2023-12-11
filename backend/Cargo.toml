@@ -5,6 +5,9 @@ edition = "2021"
 
 [[bin]]
 name = "backend"
+
+[[bin]]
+name = "status_update_client"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies] 
