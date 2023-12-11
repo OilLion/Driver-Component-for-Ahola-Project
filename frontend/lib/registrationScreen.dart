@@ -126,7 +126,6 @@ class RegistrationScreenStatefulState extends State<RegistrationScreenStateful>{
     );
   }
 
-
   int registrationResponse = -1;
 
   void _handleRegisterButton() {

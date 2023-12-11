@@ -102,7 +102,6 @@ class LoginScreenState extends State<LoginScreen>{
     );
   }
 
-
   int loginResponse = -1;
 
   void _handleLoginButton() {

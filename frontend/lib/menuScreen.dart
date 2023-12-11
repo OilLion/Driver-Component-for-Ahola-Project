@@ -24,7 +24,6 @@ class MenuScreen extends StatelessWidget {
 class MenuScreenStateful extends StatefulWidget{
   const MenuScreenStateful({super.key});
 
-
   @override
   State<StatefulWidget> createState() => MenuScreenStatefulState();
 }
