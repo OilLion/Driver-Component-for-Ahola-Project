@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/client.dart';
 import 'package:frontend/userData.dart';
 import 'package:grpc/grpc.dart';
-
 import 'generated/status_updater.pb.dart';
 
 class RouteDisplay extends StatelessWidget {
@@ -55,7 +54,6 @@ class RouteDisplayStatefulState extends State<RouteDisplayStateful> {
           isActive: UserData.instance.currentStep >= i,
           title: Text(UserData.instance.activeRoute.events[i].location),
           content: Container(
-            //child: const Text('Content of Step'),
           )
         )
       );

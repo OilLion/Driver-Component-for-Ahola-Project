@@ -5,7 +5,6 @@ import 'generated/route_manager.pbgrpc.dart';
 
 class UserManagerService {
 
-  ///here enter your host without the http part (e.g enter google.com now http://google.com)
   String baseUrl = "10.0.2.2";
 
   UserManagerService._internal();
@@ -13,25 +12,23 @@ class UserManagerService {
 
   factory UserManagerService() => _instance;
 
-  ///static HelloService instance that we will call when we want to make requests
+  ///static UserManagerService instance that we will call when we want to make requests
   static UserManagerService get instance => _instance;
-  ///HelloClient is the  class that was generated for us when we ran the generation command
   ///We will pass a channel to it to intialize it
   late UserManagerClient _userManagerClient;
 
   ///this will be used to create a channel once we create this class.
-  ///Call HelloService().init() before making any call.
+  ///Call UserManagerService().init() before making any call.
   Future<void> init() async {
     _createChannel();
   }
 
-  ///provide public access to the HelloClient instance
+  ///provide public access to the UserManagerClient instance
   UserManagerClient get userManagerClient {
     return _userManagerClient;
   }
 
-  ///here we create a channel and use it to initialize the HelloClient that was generated
-  ///
+  ///here we create a channel and use it to initialize the UserManagerClient that was generated
   _createChannel() {
     final channel = ClientChannel(
       baseUrl,
@@ -49,7 +46,6 @@ class UserManagerService {
 
 class RouteManagerService {
 
-  ///here enter your host without the http part (e.g enter google.com now http://google.com)
   String baseUrl = "10.0.2.2";
 
   RouteManagerService._internal();
@@ -57,25 +53,23 @@ class RouteManagerService {
 
   factory RouteManagerService() => _instance;
 
-  ///static HelloService instance that we will call when we want to make requests
+  ///static RouteManagerService instance that we will call when we want to make requests
   static RouteManagerService get instance => _instance;
-  ///HelloClient is the  class that was generated for us when we ran the generation command
   ///We will pass a channel to it to intialize it
   late RouteManagerClient _routeClient;
 
   ///this will be used to create a channel once we create this class.
-  ///Call HelloService().init() before making any call.
+  ///Call RouteManagerService().init() before making any call.
   Future<void> init() async {
     _createChannel();
   }
 
-  ///provide public access to the HelloClient instance
+  ///provide public access to the RouteManagerClient instance
   RouteManagerClient get routeClient {
     return _routeClient;
   }
 
-  ///here we create a channel and use it to initialize the HelloClient that was generated
-  ///
+  ///here we create a channel and use it to initialize the RouteManagerClient that was generated
   _createChannel() {
     final channel = ClientChannel(
       baseUrl,
@@ -93,7 +87,6 @@ class RouteManagerService {
 
 class StatusUpdaterService {
 
-  ///here enter your host without the http part (e.g enter google.com now http://google.com)
   String baseUrl = "10.0.2.2";
 
   StatusUpdaterService._internal();
@@ -101,25 +94,23 @@ class StatusUpdaterService {
 
   factory StatusUpdaterService() => _instance;
 
-  ///static HelloService instance that we will call when we want to make requests
+  ///static StatusUpdaterService instance that we will call when we want to make requests
   static StatusUpdaterService get instance => _instance;
-  ///HelloClient is the  class that was generated for us when we ran the generation command
   ///We will pass a channel to it to intialize it
   late DriverUpdaterClient _statusUpdaterClient;
 
   ///this will be used to create a channel once we create this class.
-  ///Call HelloService().init() before making any call.
+  ///Call StatusUpdaterService().init() before making any call.
   Future<void> init() async {
     _createChannel();
   }
 
-  ///provide public access to the HelloClient instance
+  ///provide public access to the StatusUpdaterClient instance
   DriverUpdaterClient get statusUpdaterClient {
     return _statusUpdaterClient;
   }
 
-  ///here we create a channel and use it to initialize the HelloClient that was generated
-  ///
+  ///here we create a channel and use it to initialize the StatusUpdaterClient that was generated
   _createChannel() {
     final channel = ClientChannel(
       baseUrl,
