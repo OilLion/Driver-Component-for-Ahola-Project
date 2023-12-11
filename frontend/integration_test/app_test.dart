@@ -30,6 +30,7 @@ void main() {
     await Future.delayed(Duration(seconds: delayTime));
     await tester.tap(loginButton);
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle(); // second one is needed for navigation to other screen
     await Future.delayed(Duration(seconds: delayTime));
 
     expect(find.byKey(const Key('menuScreen')), findsOneWidget);
@@ -61,7 +62,5 @@ void main() {
       await tester.pumpAndSettle();
       await Future.delayed(Duration(seconds: delayTime));
     }
-
-
     });
 }
