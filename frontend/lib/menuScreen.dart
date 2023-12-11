@@ -127,52 +127,6 @@ class MenuScreenStatefulState extends State<MenuScreenStateful>{
           });
   }
 
-/*
-  ListView routeList() {
-    return
-      ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          scrollDirection: Axis.vertical,
-          itemCount: _routes.length,
-          itemBuilder: (context, index) {
-            return Column(
-              children: [
-                Container(
-                  color: Colors.grey,
-                  child: Card(
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 80,  //height of individual Routes
-                          child: ListView.builder(
-                            itemCount: _routes[index].events.length,
-                            itemBuilder: (context, indexEvents) {
-                              return Container(
-                                alignment: Alignment.topLeft,
-                                child: Column(
-                                  children: [
-                                    Text(_routes[index].events[indexEvents].location,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        ElevatedButton(
-                            key: Key(_routes[index].routeId.toString()),
-                            onPressed: ()=>_handleAccept(index),
-                            child: const Text("ACCEPT THIS ROUTE"))
-                      ],
-                    ),
-                  ),
-                )
-              ],
-            );
-          });
-  }
-*/
   void _checkIfAlreadyAssigned() {
     checkAssignedRoute().whenComplete(() {
       if(UserData.instance.alreadyAssigned) {

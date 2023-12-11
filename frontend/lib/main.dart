@@ -11,7 +11,7 @@ void main() {
         MaterialApp(
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
-                seedColor: Color.fromARGB(255, 203, 4, 62),
+                seedColor: const Color.fromARGB(255, 203, 4, 62),
                 brightness: Brightness.light,
               ),
               appBarTheme: const AppBarTheme(
@@ -19,7 +19,6 @@ void main() {
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 203, 4, 62),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -27,20 +26,17 @@ void main() {
                 )
               )
             ),
-            home: MyApp()),
+            home: const DriverApp()),
       );
 }
 
-
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DriverApp extends StatelessWidget {
+  const DriverApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        //backgroundColor: const Color.fromARGB(255, 51, 1, 40),
         title: const Text("DRIVER APP"),
       ),
       body: const LoginScreen(),

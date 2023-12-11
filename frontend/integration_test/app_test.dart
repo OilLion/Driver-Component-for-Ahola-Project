@@ -23,9 +23,11 @@ void main() {
     final Finder userNameField = find.byKey(const Key('userNameField'));
     final Finder passwordField = find.byKey(const Key('passwordField'));
 
+    await Future.delayed(Duration(seconds: delayTime));
     await tester.enterText(userNameField, userName);
     await tester.enterText(passwordField, password);
     await tester.pumpAndSettle();
+    await Future.delayed(Duration(seconds: delayTime));
     await tester.tap(loginButton);
     await tester.pumpAndSettle();
     await Future.delayed(Duration(seconds: delayTime));
