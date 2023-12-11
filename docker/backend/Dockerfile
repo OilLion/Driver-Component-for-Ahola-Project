@@ -18,7 +18,7 @@ COPY ../../backend .
 COPY ../../protos /protos
 
 RUN mkdir /backend_binary
-RUN cargo build --release
+RUN cargo build --bin backend --release
 
 FROM debian:bookworm-slim
 # RUN apt-get update && apt-get install -y install libc6
