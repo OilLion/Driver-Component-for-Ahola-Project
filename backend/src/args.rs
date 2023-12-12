@@ -22,6 +22,7 @@ pub struct Args {
     #[arg(short, long, value_name = "URL of the database")]
     database_url: Option<String>,
     /// URL of the planning server.
+    #[arg(long, value_name = "URL of the planning server")]
     planning_url: Option<String>,
 }
 

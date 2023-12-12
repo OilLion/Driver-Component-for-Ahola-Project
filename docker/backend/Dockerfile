@@ -19,10 +19,12 @@ COPY ../../protos /protos
 
 RUN mkdir /backend_binary
 RUN cargo build --bin backend --release
+RUN cargo build --bin status_update_client --release
 
 FROM debian:bookworm-slim
 # RUN apt-get update && apt-get install -y install libc6
 COPY --from=builder /build_dir/target/release/backend .
+COPY --from=builder /build_dir/target/release/status_update_client .
 
 ENTRYPOINT ["./backend"]
  
