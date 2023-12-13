@@ -105,10 +105,10 @@ pub async fn assign_driver_to_route(conn: Connection<'_>, name: &str, id: i32) -
     .await?;
     sqlx::query!(
         "
-                UPDATE delivery
-                SET name=$1
-                WHERE id=$2
-            ",
+        UPDATE delivery
+        SET name=$1
+        WHERE id=$2
+        ",
         name,
         id
     )
