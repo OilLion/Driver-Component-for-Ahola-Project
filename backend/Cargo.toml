@@ -3,10 +3,15 @@ name = "backend"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "backend"
+
+[[bin]]
+name = "status_update_client"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies] 
-tokio = { version = "^1.33.0", features = ["rt-multi-thread", "macros"]}
+tokio = { version = "^1.33.0", features = ["rt-multi-thread", "macros", "rt"] }
 sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "postgres", "macros"] }
 tonic = "0.10.2"
 prost = "0.12.1"
@@ -19,4 +24,4 @@ tracing-subscriber = "0.3.17"
 thiserror = "1.0.50"
  
 [build-dependencies]
-tonic-build = "0.9"
+tonic-build = "0.10.2"

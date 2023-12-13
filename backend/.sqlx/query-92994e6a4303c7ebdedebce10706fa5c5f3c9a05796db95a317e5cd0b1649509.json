@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE delivery\n        SET name=$1\n        WHERE id=$2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "92994e6a4303c7ebdedebce10706fa5c5f3c9a05796db95a317e5cd0b1649509"
+}

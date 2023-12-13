@@ -24,5 +24,14 @@ services:
     build:
       dockerfile: ./docker/backend/Dockerfile 
     entrypoint: "/backend"
-    command: [ "--database-url", "postgresql://Driver:1234@driver_database/Drivers" ]
+    command: [ "--database-url", "postgresql://Driver:1234@driver_database/Drivers", "--planning-url", "http://status_update:4423"]
+
+  status_update_client:
+    container_name: status_update
+    ports:
+      - "4423:4423"
+    build:
+      dockerfile: ./docker/backend/Dockerfile 
+    entrypoint: "/status_update_client"
+    command: [ "--port", "4423"]
 

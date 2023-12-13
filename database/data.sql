@@ -40,3 +40,8 @@ INSERT INTO driver (name, password, veh_name)
 VALUES ('Christian', '1234', 'Truck'),
        ('Oli', '1234', 'Van'),
        ('Atta', '1234', 'Truck');
+
+
+UPDATE driver SET id = 2 WHERE name = 'Atta';
+
+UPDATE delivery set name = 'Atta' WHERE id = 2;

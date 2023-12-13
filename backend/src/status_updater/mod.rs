@@ -1,9 +1,10 @@
 use crate::sql::{RouteStatus, UpdateMessage};
 use crate::types::LoginTokens;
 use sqlx::{PgConnection, Pool, Postgres};
+// use std::error::Error;
 use tokio::task::{JoinError, JoinSet};
 use tonic::Request;
-use tracing::{event, Level};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 pub mod grpc_implementation;
@@ -18,6 +19,7 @@ use self::grpc_implementation::grpc_status_updater::PlanningUpdate;
 /// from the drivers. In every status update it recieves, it sends a message
 /// to the `PlanningClient`, which is responible for sending the update to
 /// planning.
+#[derive(Debug)]
 pub struct StatusUpdater {
     login_tokens: LoginTokens,
     database: Pool<Postgres>,
@@ -57,6 +59,7 @@ impl PlanningClient {
         loop {
             tokio::select! {
                 Some(message) = self.messages.recv() => {
+                    println!("received message: {:?}", &message);
                     let task = update_planning(message, self.service_url);
                     updates.spawn(task);
                 },
@@ -104,11 +107,13 @@ pub fn create_status_updater_and_client(
 }
 
 /// Sends a message to the `PlanningClient` to update the status of the route.
+#[instrument]
 async fn update_planning(
     message: UpdateMessage,
     service_url: &'static str,
 ) -> Result<(), UpdateMessage> {
     let handle_error = |err: &dyn std::error::Error| {
+        println!("{:?}", std::error::Error::source(&err));
         event!(
             Level::DEBUG,
             error = %err,
@@ -140,6 +145,7 @@ impl StatusUpdater {
             messages,
         }
     }
+    #[instrument]
     async fn update_status(&self, token_id: &[u8], step: i32) -> Result<bool, crate::error::Error> {
         let token_id = Uuid::from_slice(token_id)?;
         let driver = self
@@ -149,6 +155,7 @@ impl StatusUpdater {
         let mut conn = self.database.acquire().await?;
         let (done, route_id) = update_status(conn.as_mut(), &driver.user, step).await?;
         if let Err(error) = self.messages.try_send(UpdateMessage { route_id, step }) {
+            println!("{}", error);
             let mut conn = self.database.acquire().await?;
             match error {
                 tokio::sync::mpsc::error::TrySendError::Full(message) => {
@@ -273,20 +280,21 @@ mod tests {
         let (_, test_vehicle) = test_utils::generate_test_user_and_vehicle(tx.as_mut()).await;
         let route = test_utils::generate_route(test_vehicle, 10);
         let route_id = crate::sql::insert_route(tx.as_mut(), &route).await.unwrap();
+        let matches_route = |unsent: &UpdateMessage| unsent.route_id == route_id;
         let message = UpdateMessage { route_id, step: 3 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
-        assert_eq!(unsent.next().unwrap(), message);
+        assert_eq!(unsent.find(matches_route).unwrap(), message);
         // increasing step works:
         let message = UpdateMessage { route_id, step: 5 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
-        assert_eq!(unsent.next().unwrap(), message);
+        assert_eq!(unsent.find(matches_route).unwrap(), message);
         // decreasing does not affect it:
         let message = UpdateMessage { route_id, step: 2 };
         mark_unsent(tx.as_mut(), message).await.unwrap();
         let mut unsent = retrieve_unsent(tx.as_mut()).await.unwrap().into_iter();
-        assert_eq!(unsent.next().unwrap().step, 5);
+        assert_eq!(unsent.find(matches_route).unwrap().step, 5);
     }
 
     #[tokio::test]
