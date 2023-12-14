@@ -167,6 +167,7 @@ pub async fn retrieve_routes_for_user(
         WHERE dr.name = $1
         AND   dr.veh_name = de.veh_name
         AND   de.id = ev.del_id
+        AND de.name = null
         ORDER BY de.id, ev.step
         ",
         user
