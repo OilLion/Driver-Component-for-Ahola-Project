@@ -40,10 +40,10 @@ impl UserManagerService for UserManager {
             password,
             vehicle,
         } = registration.into_inner();
-        match self
+        let result = self
             .add_driver(username.as_str(), password.as_str(), vehicle.as_str())
-            .await
-        {
+            .await;
+        match result {
             Ok(_) => {
                 event!(
                     Level::INFO,
@@ -54,28 +54,7 @@ impl UserManagerService for UserManager {
                     result: RegistrationResult::RegistrationSuccess as i32,
                 }))
             }
-            Err(Error::DuplicateUsername(username)) => {
-                event!(
-                    Level::DEBUG,
-                    message = "registration attempt with existing username",
-                    %username,
-                );
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::UserAlreadyExists as i32,
-                }))
-            }
-            Err(Error::UnhandledDatabaseError(error)) => {
-                event!(Level::ERROR, %error, "unhandled database error");
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::RegistrationUnknownError as i32,
-                }))
-            }
-            Err(error) => {
-                event!(Level::ERROR, %error, "unhandled error");
-                Ok(Response::new(RegistrationResponse {
-                    result: RegistrationResult::RegistrationUnknownError as i32,
-                }))
-            }
+            Err(err) => Ok(handle_register_error(err)),
         }
     }
     /// Logs in a driver, by calling the [`login_driver`](UserManager::login_driver) method.
@@ -133,6 +112,33 @@ impl UserManagerService for UserManager {
                     }))
                 }
             },
+        }
+    }
+}
+
+fn handle_register_error(error: crate::error::Error) -> Response<RegistrationResponse> {
+    match error {
+        Error::DuplicateUsername(username) => {
+            event!(
+                Level::DEBUG,
+                message = "registration attempt with existing username",
+                %username,
+            );
+            Response::new(RegistrationResponse {
+                result: RegistrationResult::UserAlreadyExists as i32,
+            })
+        }
+        Error::UnhandledDatabaseError(error) => {
+            event!(Level::ERROR, %error, "unhandled database error");
+            Response::new(RegistrationResponse {
+                result: RegistrationResult::RegistrationUnknownError as i32,
+            })
+        }
+        error => {
+            event!(Level::ERROR, %error, "unhandled error");
+            Response::new(RegistrationResponse {
+                result: RegistrationResult::RegistrationUnknownError as i32,
+            })
         }
     }
 }

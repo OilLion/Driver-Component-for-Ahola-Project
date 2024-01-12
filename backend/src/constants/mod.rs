@@ -6,6 +6,7 @@ use std::{
 pub mod database_error_codes {
     pub const DATABASE_UNIQUE_CONSTRAINT_VIOLATED: &str = "23505";
     pub const DATABASE_FOREIGN_KEY_VIOLATION: &str = "23503";
+    pub const FOREIGN_KEY_CONSTRAINT_DRIVER_VEHICLE: &str = "fk_driver_associati_vehicle";
 }
 
 pub const DATABASE_URL: &str = "postgresql://Driver:1234@localhost/Drivers";

@@ -1,9 +1,11 @@
+/// This binary is a simply dummy client, which receives status updates from planning and
+/// prints them to standard out. It repurposes the `PlannungUpdaterTester` service orginally
+/// created for internally testing the sending of satus updates.
 use backend::status_updater::grpc_implementation::grpc_status_updater::planning_updater_server::PlanningUpdaterServer;
 use backend::status_updater::grpc_implementation::grpc_status_updater::PlanningUpdate;
 use backend::status_updater::grpc_implementation::updater_server_planning::PlanningUpdaterTester;
 use clap::Parser;
-use std::fmt::{Display, Formatter};
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::Ipv4Addr;
 
 const DEFAULT_PORT: u16 = 8273;
 const DEFAULT_ADDRESS: Ipv4Addr = std::net::Ipv4Addr::UNSPECIFIED;
@@ -36,7 +38,7 @@ async fn main() {
     let (send, mut rec) = tokio::sync::mpsc::channel(1024);
 
     let server = PlanningUpdaterTester { channel: send };
-    let server_handle = tokio::spawn(
+    tokio::spawn(
         tonic::transport::Server::builder()
             .add_service(PlanningUpdaterServer::new(server))
             .serve(args.address()),

@@ -95,7 +95,7 @@ impl RouteManager {
     /// - [`Error::RouteAlreadyAssigned`] if the given `route_id` is already assigned to a driver.
     /// - [`Error::DriverAlreadyAssigned`] if the driver associated with the given `token_id` is
     ///    already assigned to a route.
-    /// - [`Error::IncompatibelVehicle`] if the vehicle of the driver associated with the given
+    /// - [`Error::IncompatibleVehicle`] if the vehicle of the driver associated with the given
     ///     `token_id` does not match the vehicle of the route with the given `route_id`.
     /// - [`Error::UnhandledDatabaseError`] if any other database error occurs.
     async fn select_route(&self, token_id: &Uuid, route_id: i32) -> Result<bool, Error> {
@@ -130,7 +130,7 @@ impl RouteManager {
             return Err(Error::DriverAlreadyAssigned(name.into()));
         }
         if driver_info.vehicle != route.vehicle {
-            return Err(Error::IncompatibelVehicle(route.vehicle.into()));
+            return Err(Error::IncompatibleVehicle(route.vehicle.into()));
         }
         assign_driver_to_route(tx.as_mut(), name, route_id).await?;
         tx.commit().await?;
@@ -202,7 +202,7 @@ mod route_manager_tests {
             .unwrap();
         let result = RouteManager::select_route_helper(tx.as_mut(), &username, route_id).await;
         assert!(
-            result.is_err_and(|err| if let Error::IncompatibelVehicle(veh) = err {
+            result.is_err_and(|err| if let Error::IncompatibleVehicle(veh) = err {
                 veh == control_vehicle
             } else {
                 panic!("{}", err)
@@ -261,7 +261,7 @@ mod route_manager_tests {
     }
 
     #[tokio::test]
-    async fn reject_rpute_with_unknown_vehicle() {
+    async fn reject_route_with_unknown_vehicle() {
         let vehicle = "vehicle_not_in_database";
         let events: Vec<_> = ["Kokkola", "Helsinki"]
             .iter()

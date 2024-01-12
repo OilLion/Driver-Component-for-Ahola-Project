@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, time::Duration};
+use std::net::Ipv4Addr;
 
 pub use clap::Parser;
 
@@ -34,11 +34,11 @@ impl Args {
         )
         .into()
     }
-    pub fn login_duration(&self) -> Duration {
+    pub fn login_duration(&self) -> std::time::Duration {
         if let Some(duration) = self.login_duration {
-            Duration::from_secs(duration)
+            std::time::Duration::from_secs(duration)
         } else {
-            DEFAULT_LOGIN_DURATION
+            crate::constants::DEFAULT_LOGIN_DURATION
         }
     }
     pub fn database_url(&self) -> &str {

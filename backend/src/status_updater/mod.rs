@@ -27,6 +27,7 @@ pub struct StatusUpdater {
 }
 
 /// The 'PlanningClient' is responsible for sending status updates to planning.
+#[derive(Debug)]
 pub struct PlanningClient {
     database: Pool<Postgres>,
     messages: tokio::sync::mpsc::Receiver<UpdateMessage>,
@@ -54,18 +55,17 @@ impl PlanningClient {
     /// establishes a connection to the planning server and sends the message.
     /// Also awaits the results of the tasks it has spawned. If a task failed to send the update
     /// to planning, the update is buffered in the database.
+    #[instrument]
     pub async fn run(mut self) -> Result<(), sqlx::Error> {
-        let mut updates: JoinSet<Result<(), UpdateMessage>> = JoinSet::new();
+        let mut updates = JoinSet::new();
         loop {
             tokio::select! {
                 Some(message) = self.messages.recv() => {
-                    println!("received message: {:?}", &message);
                     let task = update_planning(message, self.service_url);
                     updates.spawn(task);
                 },
                 Some(join_result) = updates.join_next(), if !updates.is_empty() => {
-                    let mut conn = self.database.acquire().await?;
-                    Self::handle_join_result(conn.as_mut(), join_result).await
+                    self.handle_join_result(join_result).await?;
                 },
                 else => break,
             }
@@ -74,13 +74,14 @@ impl PlanningClient {
     }
 
     async fn handle_join_result<'a>(
-        conn: &'_ mut PgConnection,
+        &self,
         join_result: Result<Result<(), UpdateMessage>, JoinError>,
-    ) {
+    ) -> Result<(), sqlx::Error> {
         match join_result {
             Ok(Ok(_)) => (),
             Ok(Err(message)) => {
-                if let Err(error) = crate::sql::mark_unsent(conn, message).await {
+                let mut conn = self.database.acquire().await?;
+                if let Err(error) = crate::sql::mark_unsent(conn.as_mut(), message).await {
                     event!(Level::ERROR, %error)
                 }
             }
@@ -88,6 +89,7 @@ impl PlanningClient {
                 event!(Level::ERROR, %join_error, "unable to join update_planning task");
             }
         }
+        Ok(())
     }
 }
 
@@ -113,7 +115,6 @@ async fn update_planning(
     service_url: &'static str,
 ) -> Result<(), UpdateMessage> {
     let handle_error = |err: &dyn std::error::Error| {
-        println!("{:?}", std::error::Error::source(&err));
         event!(
             Level::DEBUG,
             error = %err,

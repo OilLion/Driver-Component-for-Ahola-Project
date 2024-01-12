@@ -1,12 +1,12 @@
 use crate::types::routes::{DriverRoute, Event, Route};
 use sqlx::{postgres::PgQueryResult, PgConnection};
 
-pub type Connection<'a> = &'a mut PgConnection;
+type Connection<'a> = &'a mut PgConnection;
 
 type Result<T> = std::result::Result<T, sqlx::Error>;
 
 /// Inserts a `[Route]` into the database and returns the assigned id
-pub async fn insert_route(conn: &mut PgConnection, route: &Route) -> Result<i32> {
+pub async fn insert_route(conn: Connection<'_>, route: &Route) -> Result<i32> {
     let id = sqlx::query!(
         "INSERT INTO DELIVERY (veh_name)
                         VALUES ($1)
@@ -16,23 +16,28 @@ pub async fn insert_route(conn: &mut PgConnection, route: &Route) -> Result<i32>
     .fetch_one(conn.as_mut())
     .await
     .map(|id| id.id)?;
-    for query in {
-        route.events.iter().zip(0i32..).map(|(event, index)| {
-            sqlx::query!(
-                "INSERT INTO EVENT (Del_id, location, step)
-                    VALUES ($1, $2, $3)",
-                id,
-                event.location,
-                index
-            )
-        })
-    } {
-        query.execute(conn.as_mut()).await?;
-    }
+    let event_locations = route
+        .events
+        .iter()
+        .map(|event| event.location.clone())
+        .collect::<Vec<_>>();
+    sqlx::query!(
+        "INSERT INTO EVENT (Del_id, location, step)
+            VALUES (
+                $1, 
+                UNNEST($2::VARCHAR[]), 
+                UNNEST(ARRAY(SELECT * FROM GENERATE_SERIES(0, $3 - 1)))
+                )",
+        id,
+        &event_locations[..],
+        event_locations.len() as i32,
+    )
+    .execute(conn.as_mut())
+    .await?;
     Ok(id)
 }
 
-pub async fn delete_route(conn: &mut PgConnection, id: i32) -> Result<PgQueryResult> {
+pub async fn delete_route(conn: Connection<'_>, id: i32) -> Result<PgQueryResult> {
     sqlx::query!("DELETE FROM EVENT WHERE Del_id = $1", id)
         .execute(conn.as_mut())
         .await?;

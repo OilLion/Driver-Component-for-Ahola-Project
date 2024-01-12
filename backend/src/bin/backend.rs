@@ -18,10 +18,7 @@ use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .pretty()
-        .init();
+    tracing_subscriber::fmt().pretty().init();
     let args = Args::parse();
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -31,13 +28,13 @@ async fn main() {
     let tokens = LoginTokens::new();
     let user_manager = UserManager::new(pool.clone(), tokens.clone(), args.login_duration());
     let route_manager = RouteManager::new(pool.clone(), tokens.clone());
-    let (status_updater, status_planning_clinet) = create_status_updater_and_client(
+    let (status_updater, status_planning_client) = create_status_updater_and_client(
         pool.clone(),
         tokens.clone(),
         1024,
         args.planning_url().into(),
     );
-    tokio::spawn(status_planning_clinet.run());
+    tokio::spawn(status_planning_client.run());
     tonic::transport::Server::builder()
         .add_service(UserManagerServer::new(user_manager))
         .add_service(RouteManagerServer::new(route_manager))

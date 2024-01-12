@@ -2,10 +2,11 @@ use crate::constants::database_error_codes::{
     DATABASE_FOREIGN_KEY_VIOLATION, DATABASE_UNIQUE_CONSTRAINT_VIOLATED,
 };
 use sqlx::error::DatabaseError;
-use thiserror::Error;
+use std::sync::Arc;
+// use thiserror::Error;
 use tonic::{Code, Status};
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("supplied route is invalid")]
     InvalidRoute,
@@ -24,7 +25,7 @@ pub enum Error {
     #[error("database error: {0}")]
     UnhandledDatabaseError(#[from] sqlx::Error),
     #[error("driver not registered for vehicle {0}")]
-    IncompatibelVehicle(String),
+    IncompatibleVehicle(String),
     #[error("invalid status update, new step {0} is smaller than current step {1}")]
     RouteUpdateSmallerThanCurrent(i32, i32),
     #[error("invalid status update, new step {0} exceeds total steps {1}")]
@@ -33,7 +34,7 @@ pub enum Error {
     MalformedTokenId(#[from] uuid::Error),
     #[error("driver {0} not registered")]
     DriverNotRegistered(String),
-    #[error("invalid passowrd")]
+    #[error("invalid password")]
     InvalidPassword,
     #[error("driver with name {0} already registered")]
     DuplicateUsername(String),
@@ -44,7 +45,7 @@ impl From<Error> for Status {
         let code = match error {
             Error::InvalidRoute
             | Error::DriverNotAssigned(_)
-            | Error::IncompatibelVehicle(_)
+            | Error::IncompatibleVehicle(_)
             | Error::RouteUpdateSmallerThanCurrent(_, _)
             | Error::RouteUpdateExceedsEventCount(_, _)
             | Error::MalformedTokenId(_)
@@ -58,7 +59,9 @@ impl From<Error> for Status {
             Error::UnauthenticatedUser => Code::Unauthenticated,
             Error::UnhandledDatabaseError(_) => Code::Unknown,
         };
-        Self::new(code, error.to_string())
+        let mut status = Self::new(code, error.to_string());
+        status.set_source(Arc::new(error));
+        status
     }
 }
 

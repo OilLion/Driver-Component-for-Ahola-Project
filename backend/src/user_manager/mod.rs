@@ -4,6 +4,7 @@ use crate::{
     types::{LoginToken, LoginTokens},
 };
 
+use crate::constants::database_error_codes::FOREIGN_KEY_CONSTRAINT_DRIVER_VEHICLE;
 use crate::error::violates_fk_constraint;
 use sqlx::{Pool, Postgres};
 use std::time::{Duration, Instant};
@@ -47,7 +48,10 @@ impl UserManager {
             Err(error) => {
                 if violates_unique_constraint(&error) {
                     Err(Error::DuplicateUsername(username.into()))
-                } else if violates_fk_constraint(&error, Some("fk_driver_associati_vehicle")) {
+                } else if violates_fk_constraint(
+                    &error,
+                    Some(FOREIGN_KEY_CONSTRAINT_DRIVER_VEHICLE),
+                ) {
                     Err(Error::UnknownVehicle(vehicle.into()))
                 } else {
                     Err(error.into())
@@ -56,6 +60,7 @@ impl UserManager {
             Ok(_) => Ok(()),
         }
     }
+
     /// Attempts to log in a driver with the given `username` and `password`.
     /// Checks if the password in the database matches the one supplied.
     /// If the passwords match, a new [`LoginToken`] is created and inserted
@@ -187,7 +192,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn login_nonexistant_user() {
+    async fn login_non_existent_user() {
         let (_, user_manager, tokens) = setup().await;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
