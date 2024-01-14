@@ -14,6 +14,22 @@ enum Result {
     UnknownError = -1;
 }
 
+message RoutesReply {
+    Result result = 1;
+    repeated RouteReply routes = 2;
+}
+
+
+message SelectRouteResponse {
+    Result result = 1;
+}
+
+
+message AddRouteResponse {
+    Result result = 1;
+    int32 route_id =2;
+}
+
 message Route {
     repeated Event events = 1;
     string vehicle = 2;
@@ -24,19 +40,11 @@ message RouteReply {
     int32 route_id = 2;
 }
 
-message RoutesReply {
-    Result result = 1;
-    repeated RouteReply routes = 2;
-}
 
 message Event {
     string location = 1;
 }
 
-message AddRouteResponse {
-    Result result = 1;
-    int32 route_id =2;
-}
 
 message GetRoutesRequest {
     bytes uuid = 1;
@@ -56,9 +64,6 @@ message SelectRouteRequest {
     bytes uuid = 2;
 }
 
-message SelectRouteResponse {
-    Result result = 1;    
-}
 
 service RouteManager {
     rpc AddRoute (Route) returns (AddRouteResponse);
@@ -66,3 +71,4 @@ service RouteManager {
     rpc SelectRoute (SelectRouteRequest) returns (SelectRouteResponse);
     rpc GetAssignedRoute (GetAssignedRouteRequest) returns (AssignedRoute);
 }
+

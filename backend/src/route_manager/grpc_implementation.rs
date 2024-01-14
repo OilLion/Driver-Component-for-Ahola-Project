@@ -82,17 +82,8 @@ impl From<Error> for SelectRouteResponse {
                 Error::RouteAlreadyAssigned(_) => RMResult::RouteAlreadyAssigned.into(),
                 Error::DriverAlreadyAssigned(_) => RMResult::DriverAlreadyAssigned.into(),
                 Error::UnauthenticatedUser => RMResult::UnauthenticatedUser.into(),
-                Error::IncompatibelVehicle(_) => RMResult::IncompatibleVehicle.into(),
-                Error::UnhandledDatabaseError(_)
-                | Error::DriverNotAssigned(_)
-                | Error::UnknownVehicle(_)
-                | Error::RouteUpdateSmallerThanCurrent(..)
-                | Error::RouteUpdateExceedsEventCount(_, _)
-                | Error::MalformedTokenId(_)
-                | Error::InvalidRoute
-                | Error::DriverNotRegistered(_)
-                | Error::InvalidPassword
-                | Error::DuplicateUsername(_) => RMResult::UnknownError.into(),
+                Error::IncompatibleVehicle(_) => RMResult::IncompatibleVehicle.into(),
+                _ => RMResult::UnknownError.into(),
             },
         }
     }

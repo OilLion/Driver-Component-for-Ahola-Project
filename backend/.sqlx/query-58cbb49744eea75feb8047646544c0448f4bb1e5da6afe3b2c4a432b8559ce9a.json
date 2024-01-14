@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT de.id, ev.location, ev.step FROM\n        driver dr, delivery de, event ev\n        WHERE dr.name = $1\n        AND   dr.veh_name = de.veh_name\n        AND   de.id = ev.del_id\n        ORDER BY de.id, ev.step\n        ",
+  "query": "\n        SELECT de.id, ev.location, ev.step FROM\n        driver dr, delivery de, event ev\n        WHERE dr.name = $1\n        AND   dr.veh_name = de.veh_name\n        AND   de.id = ev.del_id\n        AND de.name is null\n        ORDER BY de.id, ev.step\n        ",
   "describe": {
     "columns": [
       {
@@ -30,5 +30,5 @@
       false
     ]
   },
-  "hash": "37775f6187934345dd061b219ddc862dbca056b99b5a78de3e09e11925583b4e"
+  "hash": "58cbb49744eea75feb8047646544c0448f4bb1e5da6afe3b2c4a432b8559ce9a"
 }

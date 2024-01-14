@@ -16,7 +16,7 @@ sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "postgres"
 tonic = "0.10.2"
 prost = "0.12.1"
 tracing = "0.1.40"
-anyhow = "1.0.75"
+#anyhow = "1.0.75"
 clap = { version = "4.4.7", features = ["derive"] }
 dashmap = "5.5.3"
 uuid = { version = "1.5.0", features = ["v4"] }
